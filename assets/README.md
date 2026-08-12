@@ -1,26 +1,33 @@
 # Screenshots
 
-Real captures only. Nothing in this folder is a mock up, and nothing here should show a chat id, an
-email address, a table id or a hostname.
+Real captures only. Nothing here is a mock up, and nothing here should show an address, a chat id,
+an instance hostname or a table id.
 
-The README currently references none of these, deliberately: a link to a file that does not exist
-renders as a broken image on the repository front page, which reads worse than no picture at all.
-Add the file first, then add the reference.
+Drop files in with exactly these names. The README wires them in once they exist, never before: a
+link to a missing file renders as a broken image on the repository front page, which reads worse
+than no picture at all.
 
-Drop them in with exactly these filenames:
+| Filename | What to capture | Redact before saving |
+|---|---|---|
+| `canvas-evaluation.png` | The assessment flow on the n8n canvas, with the model boundary sticky note in shot | The instance hostname in the browser bar. Crop the chrome |
+| `form-dispatch.png` | The dispatch form, filled in or empty | The URL bar |
+| `form-arrival.png` | The arrival form opened from the QR, **sample id already filled in** | The URL bar. The prefilled id itself is fine, it is fictional |
+| `email-qr.png` | The dispatch email with the QR inline | To and From lines, **and the QR itself** |
+| `verdict-card.png` | A verdict card with the three decision buttons | The "Assessed by" line if it shows a number rather than a name |
+| `needs-review.png` | A card the engine refused to score: values not stated, **no buttons** | Same |
+| `stamped-decision.png` | A card after a decision: buttons gone, outcome and decider stamped | The note link beneath it carries the hostname |
 
-| File | What to capture |
-|---|---|
-| `verdict-card.png` | A verdict card in the chat: the sample id, the verdict, one line per check, and the three buttons |
-| `needs-review.png` | A card the engine refused to score: parameters reported as not stated, and **no buttons** |
-| `arrival-form.png` | The arrival form opened from the QR, with the sample id already filled in |
+## The QR is not a picture
 
-Two more are worth having, and the README will take them when they exist:
+It encodes `https://your-instance/form/sample-receipt?sample_id=…`, so publishing a screenshot of one
+publishes the hostname in a form anyone can scan. Cropping the email header does not deal with that.
 
-| File | What to capture |
-|---|---|
-| `canvas-evaluation.png` | The evaluation workflow on the n8n canvas, with the model boundary sticky note visible |
-| `stamped-decision.png` | A card after a decision: buttons gone, outcome and decider stamped, note link beneath |
+Either cover the QR with a solid block before saving, or leave it and accept that the instance
+address is public. Blurring is not enough at that size; the error correction in a QR code recovers
+from a surprising amount of damage.
 
-**Before adding one, check it for:** a chat id in the "Assessed by" line, a real counterparty name,
-an instance hostname in a link, and anything in a browser chrome bar. Crop rather than blur.
+## What every capture should avoid
+
+An email address, a chat id, a table id, a workflow id, an instance hostname anywhere including a
+browser bar, and a real counterparty name. The seeded data is fictional on purpose, so a capture
+taken against the seed is safe on all but the last two.
