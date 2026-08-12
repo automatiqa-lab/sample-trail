@@ -105,6 +105,13 @@ lane.
 
 Then `/new` in the chat hands back the dispatch link, and the loop starts there.
 
+| Dispatch | Arrival |
+|---|---|
+| ![The dispatch form](assets/form-dispatch.png) | ![The arrival form, opened from the QR with the sample id already in it](assets/form-arrival.png) |
+
+The arrival form is the point of the QR: the id is already filled in, so whoever receives the
+sample photographs it and submits, without typing an identifier off a label.
+
 ![The bot answering /new with the dispatch form link](assets/command-new.png)
 
 ## The specification
@@ -127,6 +134,17 @@ at all, and no tolerance band applies to something the contract excludes by name
 
 A row nobody can read stops the verdict. `threshold: 12-14` produces `needs_review` with the cell
 quoted back, rather than a default that would invent a contract term.
+
+## What it looks like inside
+
+One flow per file, and a store the others call. This is the notice flow: the covering note that
+follows a decision, and the only path in the workflow that reaches a counterparty.
+
+![The notice flow on the n8n canvas](assets/canvas-notify.png)
+
+Every branch that ends in a form ending is a refusal with a reason: a sample nobody has decided
+cannot be annotated, and a contract with no counterparty on file still records the note and says
+plainly that nobody was told.
 
 ## Licence
 

@@ -9,11 +9,18 @@ than no picture at all.
 
 ## In the repository now
 
-| File | What it shows | Redaction |
+| File | What it shows | How it was made |
 |---|---|---|
-| `arrival-notice.png` | The message a grader replies to | none needed |
-| `needs-review.png` | A refused verdict, no buttons offered | the chat id in the Assessed by line |
-| `command-new.png` | The bot answering /new | the instance hostname in the link |
+| `arrival-notice.png` | The message a grader replies to | captured, nothing redacted |
+| `needs-review.png` | A refused verdict, no buttons offered | captured, chat id blocked out |
+| `command-new.png` | The bot answering /new | captured, hostname blocked out |
+| `canvas-notify.png` | The notice flow on the canvas | captured, four workflow ids blocked out |
+| `form-dispatch.png` | The dispatch form, filled in | rendered headless, no browser chrome to redact |
+| `form-arrival.png` | The arrival form, id prefilled from the QR | same |
+
+The two forms were captured with headless Chrome against the live instance, with the fields
+filled through the same query parameter mechanism the QR uses. Real pages, real values, and no
+URL bar to leak a hostname.
 
 Redaction is a solid block, never a blur. At this text size a blur is often still legible.
 
