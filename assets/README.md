@@ -7,6 +7,18 @@ Drop files in with exactly these names. The README wires them in once they exist
 link to a missing file renders as a broken image on the repository front page, which reads worse
 than no picture at all.
 
+## In the repository now
+
+| File | What it shows | Redaction |
+|---|---|---|
+| `arrival-notice.png` | The message a grader replies to | none needed |
+| `needs-review.png` | A refused verdict, no buttons offered | the chat id in the Assessed by line |
+| `command-new.png` | The bot answering /new | the instance hostname in the link |
+
+Redaction is a solid block, never a blur. At this text size a blur is often still legible.
+
+## Still wanted
+
 | Filename | What to capture | Redact before saving |
 |---|---|---|
 | `canvas-evaluation.png` | The assessment flow on the n8n canvas, with the model boundary sticky note in shot | The instance hostname in the browser bar. Crop the chrome |
@@ -14,7 +26,6 @@ than no picture at all.
 | `form-arrival.png` | The arrival form opened from the QR, **sample id already filled in** | The URL bar. The prefilled id itself is fine, it is fictional |
 | `email-qr.png` | The dispatch email with the QR inline | To and From lines, **and the QR itself** |
 | `verdict-card.png` | A verdict card with the three decision buttons | The "Assessed by" line if it shows a number rather than a name |
-| `needs-review.png` | A card the engine refused to score: values not stated, **no buttons** | Same |
 | `stamped-decision.png` | A card after a decision: buttons gone, outcome and decider stamped | The note link beneath it carries the hostname |
 
 ## The QR is not a picture

@@ -21,6 +21,8 @@ the person is already holding.
 | Notice | Form | A covering note to the shipper and the customer, after a person has read it |
 | Chase | Schedule | Overdue nudge plus a weekly digest: throughput, approval rate, time to decision |
 
+![The message a grader replies to. The sample id in that text is the whole binding mechanism: reply to it, and the assessment attaches to the right sample without any session state](assets/arrival-notice.png)
+
 ## What it is not
 
 A quality-approval workflow, not a LIMS and not a traceability system. It does not track where a
@@ -50,6 +52,8 @@ When the model cannot read a value, the card says so: the parameter is reported 
 sample is parked at `needs_review`, and **no decision buttons are offered at all**. Approving a
 reading that was never scored is how an unreviewed sample gets waved through, so the workflow
 refuses to offer the option.
+
+![A sample the engine refused to score: every parameter reported as not stated, and no decision buttons offered](assets/needs-review.png)
 
 **State lives in a store.** The lifecycle runs for days or weeks and an event-driven engine forgets
 between events. One row per sample, one status column, written and never inferred, with every
@@ -98,6 +102,10 @@ lane.
 6. Attach a chat credential, a model credential, and a mail credential if you want emailed copies.
 7. Enable the chat trigger in `03-evaluation`. It ships disabled because enabling it repoints your
    bot's webhook.
+
+Then `/new` in the chat hands back the dispatch link, and the loop starts there.
+
+![The bot answering /new with the dispatch form link](assets/command-new.png)
 
 ## The specification
 
