@@ -1,0 +1,548 @@
+{
+  "name": "Sample Trail - decision",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "workflowInputs",
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "update",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "name": "Decision request",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "notes": "Called by the assessment flow when the update is a button press. The update travels as JSON, because a sub-workflow input is a typed field.",
+      "position": [
+        0,
+        3400
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sample-trail-decide",
+        "options": {}
+      },
+      "name": "Decision pressed (test)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "notes": "Same payload shape as the chat trigger, so a button press can be exercised without touching the bot.",
+      "position": [
+        0,
+        3680
+      ],
+      "webhookId": "sample-trail-decide"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "register_table_id",
+              "type": "string",
+              "value": "PASTE_YOUR_REGISTER_TABLE_ID"
+            },
+            {
+              "name": "spec_table_id",
+              "type": "string",
+              "value": "PASTE_YOUR_SPEC_TABLE_ID"
+            },
+            {
+              "name": "log_table_id",
+              "type": "string",
+              "value": "PASTE_YOUR_LOG_TABLE_ID"
+            },
+            {
+              "name": "counterparty_table_id",
+              "type": "string",
+              "value": "PASTE_YOUR_COUNTERPARTY_TABLE_ID"
+            },
+            {
+              "name": "spreadsheet_id",
+              "type": "string",
+              "value": "PASTE_A_SPREADSHEET_ID_TO_USE_SHEETS"
+            },
+            {
+              "name": "workbook_id",
+              "type": "string",
+              "value": "PASTE_A_WORKBOOK_ID_TO_USE_EXCEL"
+            },
+            {
+              "name": "evaluator_chat_id",
+              "type": "string",
+              "value": "PASTE_YOUR_CHAT_ID"
+            },
+            {
+              "name": "dispatcher_chat_id",
+              "type": "string",
+              "value": "PASTE_YOUR_CHAT_ID"
+            },
+            {
+              "name": "sla_days",
+              "type": "number",
+              "value": 3
+            },
+            {
+              "name": "digest_weekday",
+              "type": "number",
+              "value": 1
+            },
+            {
+              "name": "digest_window_days",
+              "type": "number",
+              "value": 7
+            },
+            {
+              "name": "n8n_base_url",
+              "type": "string",
+              "value": "https://your-n8n-instance"
+            },
+            {
+              "name": "model_url",
+              "type": "string",
+              "value": "https://api.anthropic.com/v1/messages"
+            },
+            {
+              "name": "model_version",
+              "type": "string",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "model",
+              "type": "string",
+              "value": "claude-sonnet-5"
+            },
+            {
+              "name": "transcription_url",
+              "type": "string",
+              "value": ""
+            },
+            {
+              "name": "transcription_model",
+              "type": "string",
+              "value": ""
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Settings D",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "notes": "Everything an operator changes lives here. Spreadsheet id and chat id are the two that must.",
+      "position": [
+        220,
+        3400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// verdict 0.1.0  build fd44925a8b6c\n// Source: src/verdict/ and src/adapters/verdict/. Rebuild with npm run bundle.\n\"use strict\";\nvar ST_VERDICT = (() => {\n  var __getOwnPropNames = Object.getOwnPropertyNames;\n  var __commonJS = (cb, mod) => function __require() {\n    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;\n  };\n\n  // src/verdict/coerce.js\n  var require_coerce = __commonJS({\n    \"src/verdict/coerce.js\"(exports, module) {\n      \"use strict\";\n      function toNumber(value) {\n        if (value === null || value === void 0 || value === \"\") return null;\n        if (typeof value === \"number\") return Number.isFinite(value) ? value : null;\n        if (typeof value !== \"string\") return null;\n        const cleaned = value.trim().replace(/^([+-]?\\d+),(\\d{1,2})$/, \"$1.$2\");\n        if (!/^[+-]?\\d+(\\.\\d+)?$/.test(cleaned)) return null;\n        const n = Number(cleaned);\n        return Number.isFinite(n) ? n : null;\n      }\n      function toConfidence(value) {\n        const n = toNumber(value);\n        if (n === null || n < 0) return 0;\n        return n > 1 ? 1 : n;\n      }\n      function toText(value) {\n        if (value === null || value === void 0) return \"\";\n        return String(value).trim();\n      }\n      function toList(value) {\n        if (value === null || value === void 0) return [];\n        const parts = Array.isArray(value) ? value : String(value).split(\",\");\n        return parts.map((p) => String(p).trim().toLowerCase()).filter(Boolean);\n      }\n      function toBool(value, fallback) {\n        const text = toText(value).toLowerCase();\n        if (text === \"\") return fallback === void 0 ? false : fallback;\n        return text === \"yes\" || text === \"true\" || text === \"1\" || text === \"y\";\n      }\n      module.exports = { toNumber, toConfidence, toText, toList, toBool };\n    }\n  });\n\n  // src/verdict/spec.js\n  var require_spec = __commonJS({\n    \"src/verdict/spec.js\"(exports, module) {\n      \"use strict\";\n      var { toNumber, toConfidence, toText, toList, toBool } = require_coerce();\n      var CHECKS = [\"numeric\", \"absent\"];\n      var DIRECTIONS = [\"min\", \"max\"];\n      function normaliseParam(raw) {\n        const row = raw && typeof raw === \"object\" ? raw : {};\n        const param = toText(row.param).toLowerCase();\n        const check = (toText(row.check) || \"numeric\").toLowerCase();\n        const out = {\n          param,\n          label: toText(row.label) || param,\n          unit: toText(row.unit),\n          check,\n          direction: null,\n          threshold: null,\n          values: toList(row.values),\n          tolerance_pct: toNumber(row.tolerance_pct),\n          required: toBool(row.required, true),\n          error: null\n        };\n        if (!param) {\n          out.error = \"the row names no parameter\";\n          return out;\n        }\n        if (!CHECKS.includes(check)) {\n          out.error = `unknown check \"${check}\", expected one of ${CHECKS.join(\", \")}`;\n          return out;\n        }\n        if (check === \"numeric\") {\n          const direction = toText(row.direction).toLowerCase();\n          const threshold = toNumber(row.threshold);\n          if (!DIRECTIONS.includes(direction)) {\n            out.error = `direction must be min or max, not \"${toText(row.direction)}\"`;\n            return out;\n          }\n          if (threshold === null) {\n            out.error = `threshold \"${toText(row.threshold)}\" is not a number`;\n            return out;\n          }\n          out.direction = direction;\n          out.threshold = threshold;\n          return out;\n        }\n        if (out.values.length === 0) {\n          out.error = \"an absent check names nothing to exclude\";\n          return out;\n        }\n        return out;\n      }\n      function normaliseSpec(rows) {\n        const list = Array.isArray(rows) ? rows : rows ? [rows] : [];\n        const params = list.map(normaliseParam);\n        const head = list[0] && typeof list[0] === \"object\" ? list[0] : {};\n        return {\n          spec_id: toText(head.spec_id),\n          contract_ref: toText(head.contract_ref),\n          commodity: toText(head.commodity),\n          tolerance_pct: toNumber(head.tolerance_pct),\n          params,\n          errors: params.filter((p) => p.error).map((p) => ({ param: p.param, detail: p.error }))\n        };\n      }\n      function normaliseExtraction(raw) {\n        const ex = raw && typeof raw === \"object\" ? raw : {};\n        const values = {};\n        const confidence = {};\n        const rawValues = ex.values && typeof ex.values === \"object\" ? ex.values : {};\n        for (const key of Object.keys(rawValues)) values[key.toLowerCase()] = toNumber(rawValues[key]);\n        const rawConfidence = ex.confidence && typeof ex.confidence === \"object\" ? ex.confidence : {};\n        for (const key of Object.keys(rawConfidence)) confidence[key.toLowerCase()] = toConfidence(rawConfidence[key]);\n        return {\n          values,\n          defects: toList(ex.defects),\n          notes: toText(ex.notes),\n          confidence\n        };\n      }\n      module.exports = { normaliseSpec, normaliseParam, normaliseExtraction, CHECKS, DIRECTIONS };\n    }\n  });\n\n  // src/verdict/engine.js\n  var require_engine = __commonJS({\n    \"src/verdict/engine.js\"(exports, module) {\n      \"use strict\";\n      var { normaliseSpec, normaliseExtraction } = require_spec();\n      var CONF_MIN = 0.7;\n      var DEFAULT_TOLERANCE_PCT = 2;\n      var VERDICTS = [\"pass\", \"borderline\", \"fail\", \"needs_review\"];\n      function compare(param, value, tolerance) {\n        const { threshold, direction } = param;\n        const band = Math.abs(threshold * tolerance);\n        const pass = direction === \"min\" ? value >= threshold : value <= threshold;\n        const near = direction === \"min\" ? value >= threshold - band && value < threshold : value > threshold && value <= threshold + band;\n        return {\n          param: param.param,\n          label: param.label,\n          unit: param.unit,\n          check: \"numeric\",\n          result: pass ? \"pass\" : near ? \"borderline\" : \"fail\",\n          value,\n          threshold,\n          direction,\n          detail: `${value}${param.unit} vs ${direction} ${threshold}${param.unit}`\n        };\n      }\n      function exclude(param, defects) {\n        const found = param.values.filter((v) => defects.includes(v));\n        return {\n          param: param.param,\n          label: param.label,\n          unit: \"\",\n          check: \"absent\",\n          result: found.length > 0 ? \"fail\" : \"pass\",\n          value: found.join(\", \"),\n          excluded: param.values,\n          detail: found.length > 0 ? `excluded condition present: ${found.join(\", \")}` : `none of ${param.values.join(\", \")} reported`\n        };\n      }\n      function runVerdict(input) {\n        const spec = normaliseSpec(input && input.spec);\n        const ex = normaliseExtraction(input && input.extracted);\n        if (spec.params.length === 0) {\n          return {\n            verdict: \"needs_review\",\n            reasons: [{ param: null, result: \"spec_missing\", detail: \"the spec has no parameters\" }]\n          };\n        }\n        if (spec.errors.length > 0) {\n          return {\n            verdict: \"needs_review\",\n            reasons: spec.errors.map((e) => ({ param: e.param, result: \"spec_invalid\", detail: e.detail }))\n          };\n        }\n        const numeric = spec.params.filter((p) => p.check === \"numeric\" && p.required);\n        const missing = numeric.filter((p) => ex.values[p.param] === null || ex.values[p.param] === void 0);\n        const lowConf = numeric.filter((p) => !missing.includes(p)).filter((p) => (ex.confidence[p.param] || 0) < CONF_MIN);\n        if (missing.length > 0 || lowConf.length > 0) {\n          return {\n            verdict: \"needs_review\",\n            reasons: [\n              ...missing.map((p) => ({\n                param: p.param,\n                label: p.label,\n                result: \"missing\",\n                detail: \"not stated in the evaluation\"\n              })),\n              ...lowConf.map((p) => ({\n                param: p.param,\n                label: p.label,\n                result: \"low_confidence\",\n                value: ex.confidence[p.param] || 0,\n                threshold: CONF_MIN,\n                detail: `confidence ${ex.confidence[p.param] || 0} below ${CONF_MIN}`\n              }))\n            ]\n          };\n        }\n        const specTolerance = spec.tolerance_pct === null ? DEFAULT_TOLERANCE_PCT : spec.tolerance_pct;\n        const reasons = spec.params.map((p) => {\n          if (p.check === \"absent\") return exclude(p, ex.defects);\n          const value = ex.values[p.param];\n          if (value === null || value === void 0) {\n            return {\n              param: p.param,\n              label: p.label,\n              unit: p.unit,\n              check: \"numeric\",\n              result: \"skipped\",\n              detail: \"optional and not stated\"\n            };\n          }\n          const tolerance = (p.tolerance_pct === null ? specTolerance : p.tolerance_pct) / 100;\n          return compare(p, value, tolerance);\n        });\n        const results = reasons.map((r) => r.result);\n        const verdict = results.includes(\"fail\") ? \"fail\" : results.includes(\"borderline\") ? \"borderline\" : \"pass\";\n        return { verdict, reasons };\n      }\n      module.exports = { runVerdict, compare, exclude, CONF_MIN, DEFAULT_TOLERANCE_PCT, VERDICTS };\n    }\n  });\n\n  // src/verdict/status.js\n  var require_status = __commonJS({\n    \"src/verdict/status.js\"(exports, module) {\n      \"use strict\";\n      var STATUSES = [\n        \"dispatched\",\n        \"in_transit\",\n        \"received\",\n        \"evaluated\",\n        \"needs_review\",\n        \"approved\",\n        \"rejected\",\n        \"resample_requested\"\n      ];\n      var TRANSITIONS = {\n        dispatched: [\"in_transit\", \"received\"],\n        in_transit: [\"received\"],\n        received: [\"evaluated\", \"needs_review\"],\n        needs_review: [\"evaluated\", \"needs_review\"],\n        evaluated: [\"approved\", \"rejected\", \"resample_requested\"],\n        approved: [],\n        rejected: [],\n        resample_requested: []\n      };\n      var SETTLED = Object.keys(TRANSITIONS).filter((s) => TRANSITIONS[s].length === 0);\n      var DECISIONS = {\n        approve: { decision: \"approved\", status: \"approved\" },\n        reject: { decision: \"rejected\", status: \"rejected\" },\n        resample: { decision: \"resample_requested\", status: \"resample_requested\" }\n      };\n      function isStatus(value) {\n        return STATUSES.includes(String(value || \"\").trim().toLowerCase());\n      }\n      function canTransition(from, to) {\n        const a = String(from || \"\").trim().toLowerCase();\n        const b = String(to || \"\").trim().toLowerCase();\n        if (!isStatus(a)) return { ok: false, from: a, to: b, reason: `\"${from}\" is not a status this workflow writes` };\n        if (!isStatus(b)) return { ok: false, from: a, to: b, reason: `\"${to}\" is not a status this workflow writes` };\n        if (SETTLED.includes(a)) return { ok: false, from: a, to: b, reason: `the sample is already ${a} and settled` };\n        if (!TRANSITIONS[a].includes(b)) return { ok: false, from: a, to: b, reason: `a sample cannot go from ${a} to ${b}` };\n        return { ok: true, from: a, to: b, reason: null };\n      }\n      function statusForVerdict(verdict) {\n        return verdict === \"needs_review\" ? \"needs_review\" : \"evaluated\";\n      }\n      function decisionFor(action) {\n        const key = String(action || \"\").trim().toLowerCase();\n        return Object.prototype.hasOwnProperty.call(DECISIONS, key) ? DECISIONS[key] : null;\n      }\n      module.exports = { STATUSES, TRANSITIONS, SETTLED, DECISIONS, isStatus, canTransition, statusForVerdict, decisionFor };\n    }\n  });\n\n  // src/verdict/callback.js\n  var require_callback = __commonJS({\n    \"src/verdict/callback.js\"(exports, module) {\n      \"use strict\";\n      var MAX_BYTES = 64;\n      var PREFIX = \"d\";\n      var ACTIONS = [\"approve\", \"reject\", \"resample\"];\n      function utf8Length(text) {\n        let bytes = 0;\n        for (const ch of String(text)) {\n          const cp = ch.codePointAt(0);\n          if (cp < 128) bytes += 1;\n          else if (cp < 2048) bytes += 2;\n          else if (cp < 65536) bytes += 3;\n          else bytes += 4;\n        }\n        return bytes;\n      }\n      function encodeCallback(sampleId, action) {\n        const id = String(sampleId || \"\").trim();\n        const act = String(action || \"\").trim().toLowerCase();\n        if (!id) throw new Error(\"callback data needs a sample id\");\n        if (!ACTIONS.includes(act)) throw new Error(`unknown action \"${action}\"`);\n        const data = `${PREFIX}|${id}|${act}`;\n        const bytes = utf8Length(data);\n        if (bytes > MAX_BYTES) throw new Error(`callback data is ${bytes} bytes, over the ${MAX_BYTES} byte limit`);\n        return data;\n      }\n      function parseCallback(data) {\n        const parts = String(data || \"\").split(\"|\");\n        if (parts.length !== 3 || parts[0] !== PREFIX) {\n          return { ok: false, sample_id: null, action: null, reason: \"the button payload is not one this workflow issued\" };\n        }\n        const [, sampleId, action] = parts;\n        if (!ACTIONS.includes(action)) {\n          return { ok: false, sample_id: sampleId, action: null, reason: `unknown action \"${action}\"` };\n        }\n        return { ok: true, sample_id: sampleId, action, reason: null };\n      }\n      module.exports = { encodeCallback, parseCallback, utf8Length, ACTIONS, MAX_BYTES };\n    }\n  });\n\n  // src/verdict/card.js\n  var require_card = __commonJS({\n    \"src/verdict/card.js\"(exports, module) {\n      \"use strict\";\n      var { encodeCallback } = require_callback();\n      var MARKERS = {\n        pass: \"v\",\n        fail: \"x\",\n        borderline: \"~\",\n        skipped: \"-\",\n        missing: \"?\",\n        low_confidence: \"?\",\n        spec_missing: \"!\",\n        spec_invalid: \"!\"\n      };\n      var INPUT_PHRASE = {\n        voice: \"a voice note\",\n        photo: \"a photo of the grading sheet\",\n        text: \"a typed message\"\n      };\n      function line(reason) {\n        const marker = MARKERS[reason.result] || \"-\";\n        const label = reason.label || reason.param || \"spec\";\n        const unit = reason.unit || \"\";\n        switch (reason.result) {\n          case \"pass\":\n            if (reason.check === \"absent\") return `${marker} ${label}: none reported`;\n            return `${marker} ${label} ${reason.value}${unit} meets ${reason.direction} ${reason.threshold}${unit}`;\n          case \"fail\":\n            if (reason.check === \"absent\") return `${marker} ${label}: ${reason.value} reported`;\n            return reason.direction === \"max\" ? `${marker} ${label} ${reason.value}${unit} exceeds max ${reason.threshold}${unit}` : `${marker} ${label} ${reason.value}${unit} below min ${reason.threshold}${unit}`;\n          case \"borderline\":\n            return `${marker} ${label} ${reason.value}${unit} is within tolerance of ${reason.direction} ${reason.threshold}${unit}`;\n          case \"skipped\":\n            return `${marker} ${label} not stated, and optional`;\n          case \"missing\":\n            return `${marker} ${label} not stated`;\n          case \"low_confidence\":\n            return `${marker} ${label} unclear in the evaluation`;\n          default:\n            return `${marker} ${label}: ${reason.detail}`;\n        }\n      }\n      function renderVerdictCard(input) {\n        const sample = input && input.sample || {};\n        const result = input && input.verdict || {};\n        const reasons = Array.isArray(result.reasons) ? result.reasons : [];\n        const verdict = String(result.verdict || \"needs_review\");\n        const head = [sample.sample_id, sample.lot_ref ? `Lot ${sample.lot_ref}` : null].filter(Boolean).join(\" - \");\n        const parts = [head, `Verdict: ${verdict.toUpperCase().replace(\"_\", \" \")}`, \"\"];\n        for (const reason of reasons) parts.push(line(reason));\n        parts.push(\"\");\n        const who = sample.evaluator ? `Assessed by ${sample.evaluator}` : \"Assessed\";\n        const how = INPUT_PHRASE[sample.input_type] ? ` from ${INPUT_PHRASE[sample.input_type]}` : \"\";\n        parts.push(`${who}${how} against spec ${sample.spec_id || \"unknown\"}.`);\n        if (input && input.notice) parts.push(\"\", input.notice);\n        const keyboard = verdict === \"needs_review\" ? null : {\n          inline_keyboard: [[\n            { text: \"Approve\", callback_data: encodeCallback(sample.sample_id, \"approve\") },\n            { text: \"Reject\", callback_data: encodeCallback(sample.sample_id, \"reject\") },\n            { text: \"Re-sample\", callback_data: encodeCallback(sample.sample_id, \"resample\") }\n          ]]\n        };\n        return { text: parts.join(\"\\n\"), keyboard };\n      }\n      module.exports = { renderVerdictCard, line, MARKERS, INPUT_PHRASE };\n    }\n  });\n\n  // src/verdict/index.js\n  var require_index = __commonJS({\n    \"src/verdict/index.js\"(exports, module) {\n      var engine = require_engine();\n      var spec = require_spec();\n      var status = require_status();\n      var card = require_card();\n      var callback = require_callback();\n      var coerce = require_coerce();\n      var VERDICT_VERSION = \"0.1.0\";\n      module.exports = {\n        VERDICT_VERSION,\n        runVerdict: engine.runVerdict,\n        CONF_MIN: engine.CONF_MIN,\n        DEFAULT_TOLERANCE_PCT: engine.DEFAULT_TOLERANCE_PCT,\n        VERDICTS: engine.VERDICTS,\n        normaliseSpec: spec.normaliseSpec,\n        normaliseExtraction: spec.normaliseExtraction,\n        STATUSES: status.STATUSES,\n        TRANSITIONS: status.TRANSITIONS,\n        canTransition: status.canTransition,\n        statusForVerdict: status.statusForVerdict,\n        decisionFor: status.decisionFor,\n        renderVerdictCard: card.renderVerdictCard,\n        // The stamp that replaces the buttons once a decision is made. Pure text assembly, so it\n        // belongs on the deterministic side with the card it overwrites.\n        decisionStamp: (row) => [\n          `${row.sample_id} - ${{ approved: \"Approved\", rejected: \"Rejected\", resample_requested: \"Re-sample requested\" }[(row.update || {}).decision] || (row.update || {}).decision} by ${(row.update || {}).decision_by}.`,\n          (row.update || {}).decision_note ? `Reason: ${(row.update || {}).decision_note}` : \"\"\n        ].filter(Boolean).join(String.fromCharCode(10)),\n        encodeCallback: callback.encodeCallback,\n        parseCallback: callback.parseCallback,\n        toNumber: coerce.toNumber,\n        toText: coerce.toText,\n        toList: coerce.toList\n      };\n    }\n  });\n  return require_index();\n})();\n\n\n// Adapter: callback-parse  (Flow D, Decision)\n//\n// Reads the sample id out of the button press so the row can be looked up before anything is\n// decided. Parsing and deciding are two nodes on purpose: the lookup has to sit between them, and\n// a gate that trusted the payload instead of the row would happily decide a sample twice.\n//\n// Node settings: JavaScript, Run Once for All Items.\n\n// Same shim as the assessment flow: a chat trigger passes the update, a webhook wraps it.\nconst incoming = $input.first().json;\n\n// Three ways in, one shape out. Called as a sub-workflow the update arrives as JSON on a typed\n// field. In the single file it comes from the router, which sits behind a Set node, so it is read\n// by name. The webhook used for testing passes a request body.\nlet update = incoming.body || incoming;\nif (typeof incoming.update === 'string' && incoming.update) {\n  update = JSON.parse(incoming.update);\n} else if (!update.callback_query) {\n  try {\n    update = $('Route the update').first().json;\n  } catch (err) {\n    // No router in this workflow, which is the split build. Leave the wire as it was.\n  }\n}\nconst callback = update.callback_query || {};\n\nconst parsed = ST_VERDICT.parseCallback(callback.data);\n\nreturn [\n  {\n    json: {\n      ok: parsed.ok,\n      sample_id: parsed.sample_id,\n      action: parsed.action,\n      reason: parsed.reason,\n      callback_query_id: callback.id,\n      chat_id: ((callback.message || {}).chat || {}).id,\n      message_id: (callback.message || {}).message_id,\n      from: callback.from || {},\n    },\n  },\n];\n"
+      },
+      "name": "Parse the button",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "notes": "Reads the sample id out of the press so the row can be looked up before anything is decided.",
+      "position": [
+        440,
+        3400
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_THE_ID_OF_THE_STORE_WORKFLOW",
+          "cachedResultName": "Sample Trail - store"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operation": "lookup",
+            "table": "register",
+            "column": "sample_id",
+            "value": "={{ $('Parse the button').first().json.sample_id }}",
+            "row": ""
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "name": "Find the sample to decide",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "notes": "",
+      "alwaysOutputData": true,
+      "position": [
+        660,
+        3400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// verdict 0.1.0  build fd44925a8b6c\n// Source: src/verdict/ and src/adapters/verdict/. Rebuild with npm run bundle.\n\"use strict\";\nvar ST_VERDICT = (() => {\n  var __getOwnPropNames = Object.getOwnPropertyNames;\n  var __commonJS = (cb, mod) => function __require() {\n    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;\n  };\n\n  // src/verdict/coerce.js\n  var require_coerce = __commonJS({\n    \"src/verdict/coerce.js\"(exports, module) {\n      \"use strict\";\n      function toNumber(value) {\n        if (value === null || value === void 0 || value === \"\") return null;\n        if (typeof value === \"number\") return Number.isFinite(value) ? value : null;\n        if (typeof value !== \"string\") return null;\n        const cleaned = value.trim().replace(/^([+-]?\\d+),(\\d{1,2})$/, \"$1.$2\");\n        if (!/^[+-]?\\d+(\\.\\d+)?$/.test(cleaned)) return null;\n        const n = Number(cleaned);\n        return Number.isFinite(n) ? n : null;\n      }\n      function toConfidence(value) {\n        const n = toNumber(value);\n        if (n === null || n < 0) return 0;\n        return n > 1 ? 1 : n;\n      }\n      function toText(value) {\n        if (value === null || value === void 0) return \"\";\n        return String(value).trim();\n      }\n      function toList(value) {\n        if (value === null || value === void 0) return [];\n        const parts = Array.isArray(value) ? value : String(value).split(\",\");\n        return parts.map((p) => String(p).trim().toLowerCase()).filter(Boolean);\n      }\n      function toBool(value, fallback) {\n        const text = toText(value).toLowerCase();\n        if (text === \"\") return fallback === void 0 ? false : fallback;\n        return text === \"yes\" || text === \"true\" || text === \"1\" || text === \"y\";\n      }\n      module.exports = { toNumber, toConfidence, toText, toList, toBool };\n    }\n  });\n\n  // src/verdict/spec.js\n  var require_spec = __commonJS({\n    \"src/verdict/spec.js\"(exports, module) {\n      \"use strict\";\n      var { toNumber, toConfidence, toText, toList, toBool } = require_coerce();\n      var CHECKS = [\"numeric\", \"absent\"];\n      var DIRECTIONS = [\"min\", \"max\"];\n      function normaliseParam(raw) {\n        const row = raw && typeof raw === \"object\" ? raw : {};\n        const param = toText(row.param).toLowerCase();\n        const check = (toText(row.check) || \"numeric\").toLowerCase();\n        const out = {\n          param,\n          label: toText(row.label) || param,\n          unit: toText(row.unit),\n          check,\n          direction: null,\n          threshold: null,\n          values: toList(row.values),\n          tolerance_pct: toNumber(row.tolerance_pct),\n          required: toBool(row.required, true),\n          error: null\n        };\n        if (!param) {\n          out.error = \"the row names no parameter\";\n          return out;\n        }\n        if (!CHECKS.includes(check)) {\n          out.error = `unknown check \"${check}\", expected one of ${CHECKS.join(\", \")}`;\n          return out;\n        }\n        if (check === \"numeric\") {\n          const direction = toText(row.direction).toLowerCase();\n          const threshold = toNumber(row.threshold);\n          if (!DIRECTIONS.includes(direction)) {\n            out.error = `direction must be min or max, not \"${toText(row.direction)}\"`;\n            return out;\n          }\n          if (threshold === null) {\n            out.error = `threshold \"${toText(row.threshold)}\" is not a number`;\n            return out;\n          }\n          out.direction = direction;\n          out.threshold = threshold;\n          return out;\n        }\n        if (out.values.length === 0) {\n          out.error = \"an absent check names nothing to exclude\";\n          return out;\n        }\n        return out;\n      }\n      function normaliseSpec(rows) {\n        const list = Array.isArray(rows) ? rows : rows ? [rows] : [];\n        const params = list.map(normaliseParam);\n        const head = list[0] && typeof list[0] === \"object\" ? list[0] : {};\n        return {\n          spec_id: toText(head.spec_id),\n          contract_ref: toText(head.contract_ref),\n          commodity: toText(head.commodity),\n          tolerance_pct: toNumber(head.tolerance_pct),\n          params,\n          errors: params.filter((p) => p.error).map((p) => ({ param: p.param, detail: p.error }))\n        };\n      }\n      function normaliseExtraction(raw) {\n        const ex = raw && typeof raw === \"object\" ? raw : {};\n        const values = {};\n        const confidence = {};\n        const rawValues = ex.values && typeof ex.values === \"object\" ? ex.values : {};\n        for (const key of Object.keys(rawValues)) values[key.toLowerCase()] = toNumber(rawValues[key]);\n        const rawConfidence = ex.confidence && typeof ex.confidence === \"object\" ? ex.confidence : {};\n        for (const key of Object.keys(rawConfidence)) confidence[key.toLowerCase()] = toConfidence(rawConfidence[key]);\n        return {\n          values,\n          defects: toList(ex.defects),\n          notes: toText(ex.notes),\n          confidence\n        };\n      }\n      module.exports = { normaliseSpec, normaliseParam, normaliseExtraction, CHECKS, DIRECTIONS };\n    }\n  });\n\n  // src/verdict/engine.js\n  var require_engine = __commonJS({\n    \"src/verdict/engine.js\"(exports, module) {\n      \"use strict\";\n      var { normaliseSpec, normaliseExtraction } = require_spec();\n      var CONF_MIN = 0.7;\n      var DEFAULT_TOLERANCE_PCT = 2;\n      var VERDICTS = [\"pass\", \"borderline\", \"fail\", \"needs_review\"];\n      function compare(param, value, tolerance) {\n        const { threshold, direction } = param;\n        const band = Math.abs(threshold * tolerance);\n        const pass = direction === \"min\" ? value >= threshold : value <= threshold;\n        const near = direction === \"min\" ? value >= threshold - band && value < threshold : value > threshold && value <= threshold + band;\n        return {\n          param: param.param,\n          label: param.label,\n          unit: param.unit,\n          check: \"numeric\",\n          result: pass ? \"pass\" : near ? \"borderline\" : \"fail\",\n          value,\n          threshold,\n          direction,\n          detail: `${value}${param.unit} vs ${direction} ${threshold}${param.unit}`\n        };\n      }\n      function exclude(param, defects) {\n        const found = param.values.filter((v) => defects.includes(v));\n        return {\n          param: param.param,\n          label: param.label,\n          unit: \"\",\n          check: \"absent\",\n          result: found.length > 0 ? \"fail\" : \"pass\",\n          value: found.join(\", \"),\n          excluded: param.values,\n          detail: found.length > 0 ? `excluded condition present: ${found.join(\", \")}` : `none of ${param.values.join(\", \")} reported`\n        };\n      }\n      function runVerdict(input) {\n        const spec = normaliseSpec(input && input.spec);\n        const ex = normaliseExtraction(input && input.extracted);\n        if (spec.params.length === 0) {\n          return {\n            verdict: \"needs_review\",\n            reasons: [{ param: null, result: \"spec_missing\", detail: \"the spec has no parameters\" }]\n          };\n        }\n        if (spec.errors.length > 0) {\n          return {\n            verdict: \"needs_review\",\n            reasons: spec.errors.map((e) => ({ param: e.param, result: \"spec_invalid\", detail: e.detail }))\n          };\n        }\n        const numeric = spec.params.filter((p) => p.check === \"numeric\" && p.required);\n        const missing = numeric.filter((p) => ex.values[p.param] === null || ex.values[p.param] === void 0);\n        const lowConf = numeric.filter((p) => !missing.includes(p)).filter((p) => (ex.confidence[p.param] || 0) < CONF_MIN);\n        if (missing.length > 0 || lowConf.length > 0) {\n          return {\n            verdict: \"needs_review\",\n            reasons: [\n              ...missing.map((p) => ({\n                param: p.param,\n                label: p.label,\n                result: \"missing\",\n                detail: \"not stated in the evaluation\"\n              })),\n              ...lowConf.map((p) => ({\n                param: p.param,\n                label: p.label,\n                result: \"low_confidence\",\n                value: ex.confidence[p.param] || 0,\n                threshold: CONF_MIN,\n                detail: `confidence ${ex.confidence[p.param] || 0} below ${CONF_MIN}`\n              }))\n            ]\n          };\n        }\n        const specTolerance = spec.tolerance_pct === null ? DEFAULT_TOLERANCE_PCT : spec.tolerance_pct;\n        const reasons = spec.params.map((p) => {\n          if (p.check === \"absent\") return exclude(p, ex.defects);\n          const value = ex.values[p.param];\n          if (value === null || value === void 0) {\n            return {\n              param: p.param,\n              label: p.label,\n              unit: p.unit,\n              check: \"numeric\",\n              result: \"skipped\",\n              detail: \"optional and not stated\"\n            };\n          }\n          const tolerance = (p.tolerance_pct === null ? specTolerance : p.tolerance_pct) / 100;\n          return compare(p, value, tolerance);\n        });\n        const results = reasons.map((r) => r.result);\n        const verdict = results.includes(\"fail\") ? \"fail\" : results.includes(\"borderline\") ? \"borderline\" : \"pass\";\n        return { verdict, reasons };\n      }\n      module.exports = { runVerdict, compare, exclude, CONF_MIN, DEFAULT_TOLERANCE_PCT, VERDICTS };\n    }\n  });\n\n  // src/verdict/status.js\n  var require_status = __commonJS({\n    \"src/verdict/status.js\"(exports, module) {\n      \"use strict\";\n      var STATUSES = [\n        \"dispatched\",\n        \"in_transit\",\n        \"received\",\n        \"evaluated\",\n        \"needs_review\",\n        \"approved\",\n        \"rejected\",\n        \"resample_requested\"\n      ];\n      var TRANSITIONS = {\n        dispatched: [\"in_transit\", \"received\"],\n        in_transit: [\"received\"],\n        received: [\"evaluated\", \"needs_review\"],\n        needs_review: [\"evaluated\", \"needs_review\"],\n        evaluated: [\"approved\", \"rejected\", \"resample_requested\"],\n        approved: [],\n        rejected: [],\n        resample_requested: []\n      };\n      var SETTLED = Object.keys(TRANSITIONS).filter((s) => TRANSITIONS[s].length === 0);\n      var DECISIONS = {\n        approve: { decision: \"approved\", status: \"approved\" },\n        reject: { decision: \"rejected\", status: \"rejected\" },\n        resample: { decision: \"resample_requested\", status: \"resample_requested\" }\n      };\n      function isStatus(value) {\n        return STATUSES.includes(String(value || \"\").trim().toLowerCase());\n      }\n      function canTransition(from, to) {\n        const a = String(from || \"\").trim().toLowerCase();\n        const b = String(to || \"\").trim().toLowerCase();\n        if (!isStatus(a)) return { ok: false, from: a, to: b, reason: `\"${from}\" is not a status this workflow writes` };\n        if (!isStatus(b)) return { ok: false, from: a, to: b, reason: `\"${to}\" is not a status this workflow writes` };\n        if (SETTLED.includes(a)) return { ok: false, from: a, to: b, reason: `the sample is already ${a} and settled` };\n        if (!TRANSITIONS[a].includes(b)) return { ok: false, from: a, to: b, reason: `a sample cannot go from ${a} to ${b}` };\n        return { ok: true, from: a, to: b, reason: null };\n      }\n      function statusForVerdict(verdict) {\n        return verdict === \"needs_review\" ? \"needs_review\" : \"evaluated\";\n      }\n      function decisionFor(action) {\n        const key = String(action || \"\").trim().toLowerCase();\n        return Object.prototype.hasOwnProperty.call(DECISIONS, key) ? DECISIONS[key] : null;\n      }\n      module.exports = { STATUSES, TRANSITIONS, SETTLED, DECISIONS, isStatus, canTransition, statusForVerdict, decisionFor };\n    }\n  });\n\n  // src/verdict/callback.js\n  var require_callback = __commonJS({\n    \"src/verdict/callback.js\"(exports, module) {\n      \"use strict\";\n      var MAX_BYTES = 64;\n      var PREFIX = \"d\";\n      var ACTIONS = [\"approve\", \"reject\", \"resample\"];\n      function utf8Length(text) {\n        let bytes = 0;\n        for (const ch of String(text)) {\n          const cp = ch.codePointAt(0);\n          if (cp < 128) bytes += 1;\n          else if (cp < 2048) bytes += 2;\n          else if (cp < 65536) bytes += 3;\n          else bytes += 4;\n        }\n        return bytes;\n      }\n      function encodeCallback(sampleId, action) {\n        const id = String(sampleId || \"\").trim();\n        const act = String(action || \"\").trim().toLowerCase();\n        if (!id) throw new Error(\"callback data needs a sample id\");\n        if (!ACTIONS.includes(act)) throw new Error(`unknown action \"${action}\"`);\n        const data = `${PREFIX}|${id}|${act}`;\n        const bytes = utf8Length(data);\n        if (bytes > MAX_BYTES) throw new Error(`callback data is ${bytes} bytes, over the ${MAX_BYTES} byte limit`);\n        return data;\n      }\n      function parseCallback(data) {\n        const parts = String(data || \"\").split(\"|\");\n        if (parts.length !== 3 || parts[0] !== PREFIX) {\n          return { ok: false, sample_id: null, action: null, reason: \"the button payload is not one this workflow issued\" };\n        }\n        const [, sampleId, action] = parts;\n        if (!ACTIONS.includes(action)) {\n          return { ok: false, sample_id: sampleId, action: null, reason: `unknown action \"${action}\"` };\n        }\n        return { ok: true, sample_id: sampleId, action, reason: null };\n      }\n      module.exports = { encodeCallback, parseCallback, utf8Length, ACTIONS, MAX_BYTES };\n    }\n  });\n\n  // src/verdict/card.js\n  var require_card = __commonJS({\n    \"src/verdict/card.js\"(exports, module) {\n      \"use strict\";\n      var { encodeCallback } = require_callback();\n      var MARKERS = {\n        pass: \"v\",\n        fail: \"x\",\n        borderline: \"~\",\n        skipped: \"-\",\n        missing: \"?\",\n        low_confidence: \"?\",\n        spec_missing: \"!\",\n        spec_invalid: \"!\"\n      };\n      var INPUT_PHRASE = {\n        voice: \"a voice note\",\n        photo: \"a photo of the grading sheet\",\n        text: \"a typed message\"\n      };\n      function line(reason) {\n        const marker = MARKERS[reason.result] || \"-\";\n        const label = reason.label || reason.param || \"spec\";\n        const unit = reason.unit || \"\";\n        switch (reason.result) {\n          case \"pass\":\n            if (reason.check === \"absent\") return `${marker} ${label}: none reported`;\n            return `${marker} ${label} ${reason.value}${unit} meets ${reason.direction} ${reason.threshold}${unit}`;\n          case \"fail\":\n            if (reason.check === \"absent\") return `${marker} ${label}: ${reason.value} reported`;\n            return reason.direction === \"max\" ? `${marker} ${label} ${reason.value}${unit} exceeds max ${reason.threshold}${unit}` : `${marker} ${label} ${reason.value}${unit} below min ${reason.threshold}${unit}`;\n          case \"borderline\":\n            return `${marker} ${label} ${reason.value}${unit} is within tolerance of ${reason.direction} ${reason.threshold}${unit}`;\n          case \"skipped\":\n            return `${marker} ${label} not stated, and optional`;\n          case \"missing\":\n            return `${marker} ${label} not stated`;\n          case \"low_confidence\":\n            return `${marker} ${label} unclear in the evaluation`;\n          default:\n            return `${marker} ${label}: ${reason.detail}`;\n        }\n      }\n      function renderVerdictCard(input) {\n        const sample = input && input.sample || {};\n        const result = input && input.verdict || {};\n        const reasons = Array.isArray(result.reasons) ? result.reasons : [];\n        const verdict = String(result.verdict || \"needs_review\");\n        const head = [sample.sample_id, sample.lot_ref ? `Lot ${sample.lot_ref}` : null].filter(Boolean).join(\" - \");\n        const parts = [head, `Verdict: ${verdict.toUpperCase().replace(\"_\", \" \")}`, \"\"];\n        for (const reason of reasons) parts.push(line(reason));\n        parts.push(\"\");\n        const who = sample.evaluator ? `Assessed by ${sample.evaluator}` : \"Assessed\";\n        const how = INPUT_PHRASE[sample.input_type] ? ` from ${INPUT_PHRASE[sample.input_type]}` : \"\";\n        parts.push(`${who}${how} against spec ${sample.spec_id || \"unknown\"}.`);\n        if (input && input.notice) parts.push(\"\", input.notice);\n        const keyboard = verdict === \"needs_review\" ? null : {\n          inline_keyboard: [[\n            { text: \"Approve\", callback_data: encodeCallback(sample.sample_id, \"approve\") },\n            { text: \"Reject\", callback_data: encodeCallback(sample.sample_id, \"reject\") },\n            { text: \"Re-sample\", callback_data: encodeCallback(sample.sample_id, \"resample\") }\n          ]]\n        };\n        return { text: parts.join(\"\\n\"), keyboard };\n      }\n      module.exports = { renderVerdictCard, line, MARKERS, INPUT_PHRASE };\n    }\n  });\n\n  // src/verdict/index.js\n  var require_index = __commonJS({\n    \"src/verdict/index.js\"(exports, module) {\n      var engine = require_engine();\n      var spec = require_spec();\n      var status = require_status();\n      var card = require_card();\n      var callback = require_callback();\n      var coerce = require_coerce();\n      var VERDICT_VERSION = \"0.1.0\";\n      module.exports = {\n        VERDICT_VERSION,\n        runVerdict: engine.runVerdict,\n        CONF_MIN: engine.CONF_MIN,\n        DEFAULT_TOLERANCE_PCT: engine.DEFAULT_TOLERANCE_PCT,\n        VERDICTS: engine.VERDICTS,\n        normaliseSpec: spec.normaliseSpec,\n        normaliseExtraction: spec.normaliseExtraction,\n        STATUSES: status.STATUSES,\n        TRANSITIONS: status.TRANSITIONS,\n        canTransition: status.canTransition,\n        statusForVerdict: status.statusForVerdict,\n        decisionFor: status.decisionFor,\n        renderVerdictCard: card.renderVerdictCard,\n        // The stamp that replaces the buttons once a decision is made. Pure text assembly, so it\n        // belongs on the deterministic side with the card it overwrites.\n        decisionStamp: (row) => [\n          `${row.sample_id} - ${{ approved: \"Approved\", rejected: \"Rejected\", resample_requested: \"Re-sample requested\" }[(row.update || {}).decision] || (row.update || {}).decision} by ${(row.update || {}).decision_by}.`,\n          (row.update || {}).decision_note ? `Reason: ${(row.update || {}).decision_note}` : \"\"\n        ].filter(Boolean).join(String.fromCharCode(10)),\n        encodeCallback: callback.encodeCallback,\n        parseCallback: callback.parseCallback,\n        toNumber: coerce.toNumber,\n        toText: coerce.toText,\n        toList: coerce.toList\n      };\n    }\n  });\n  return require_index();\n})();\n\n\n// Adapter: decision-gate  (Flow D, Decision)\n//\n// The human gate, and the only place a decision is written.\n//\n// Three things it refuses to do. It does not accept a decision on a sample that already has one,\n// because a double tapped button must be harmless. It does not accept an illegal status move,\n// because a lifecycle that silently overwrites is a lifecycle nobody can audit. And it does not\n// take the decider's name from anything typed: it comes off the callback sender, which cannot be\n// forged by replying with somebody else's handle.\n//\n// Node settings: JavaScript, Run Once for All Items.\n\n// The row arrives on the wire; the button was parsed one node earlier so the lookup could happen\n// in between. The gate reads the row, never the payload, for anything that decides.\nconst row = $input.first().json || {};\nconst parsed = $('Parse the button').first().json;\nconst callback = { id: parsed.callback_query_id, from: parsed.from || {} };\n\nconst who = parsed.from || {};\nconst decidedBy = who.username ? `@${who.username}` : (who.first_name || String(who.id || 'unknown'));\n\nfunction refuse(reason) {\n  return [{ json: { ok: false, sample_id: parsed.sample_id, reason, callback_query_id: callback.id, chat_id: parsed.chat_id, message_id: parsed.message_id } }];\n}\n\nif (!parsed.ok) return refuse(parsed.reason);\nif (!row.sample_id) return refuse(`no sample ${parsed.sample_id} in the register`);\nif (row.decision) return refuse(`already ${row.decision} by ${row.decision_by || 'someone'}`);\n\nconst outcome = ST_VERDICT.decisionFor(parsed.action);\nif (!outcome) return refuse(`unknown action ${parsed.action}`);\n\nconst move = ST_VERDICT.canTransition(row.status, outcome.status);\nif (!move.ok) return refuse(move.reason);\n\nconst now = new Date().toISOString();\n\nreturn [\n  {\n    json: {\n      ok: true,\n      sample_id: parsed.sample_id,\n      action: parsed.action,\n      // A rejection asks for a reason before it is written. The other two are final on the press.\n      needs_reason: parsed.action === 'reject',\n      update: {\n        decision: outcome.decision,\n        decision_by: decidedBy,\n        decision_ts: now,\n        status: outcome.status,\n      },\n      log: {\n        ts: now,\n        sample_id: parsed.sample_id,\n        actor: decidedBy,\n        action: parsed.action,\n        from_status: move.from,\n        to_status: move.to,\n      },\n      callback_query_id: callback.id,\n      chat_id: parsed.chat_id,\n      message_id: parsed.message_id,\n    },\n  },\n];\n"
+      },
+      "name": "Decision gate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "notes": "Idempotent by construction. A second press on the same card writes nothing and says who decided.",
+      "position": [
+        880,
+        3400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "name": "Decision allowed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1100,
+        3400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "callback",
+        "operation": "answerQuery",
+        "queryId": "={{ $('Decision gate').first().json.callback_query_id }}",
+        "additionalFields": {
+          "text": "={{ 'Recorded: ' + $('Decision gate').first().json.action }}"
+        }
+      },
+      "name": "Clear the spinner",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "notes": "Answered first. A button that spins for ten seconds gets pressed twice. An expired press must not block the write, so a failure here continues.",
+      "onError": "continueRegularOutput",
+      "position": [
+        1320,
+        3400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// verdict 0.1.0  build fd44925a8b6c\n// Source: src/verdict/ and src/adapters/verdict/. Rebuild with npm run bundle.\n\"use strict\";\nvar ST_VERDICT = (() => {\n  var __getOwnPropNames = Object.getOwnPropertyNames;\n  var __commonJS = (cb, mod) => function __require() {\n    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;\n  };\n\n  // src/verdict/coerce.js\n  var require_coerce = __commonJS({\n    \"src/verdict/coerce.js\"(exports, module) {\n      \"use strict\";\n      function toNumber(value) {\n        if (value === null || value === void 0 || value === \"\") return null;\n        if (typeof value === \"number\") return Number.isFinite(value) ? value : null;\n        if (typeof value !== \"string\") return null;\n        const cleaned = value.trim().replace(/^([+-]?\\d+),(\\d{1,2})$/, \"$1.$2\");\n        if (!/^[+-]?\\d+(\\.\\d+)?$/.test(cleaned)) return null;\n        const n = Number(cleaned);\n        return Number.isFinite(n) ? n : null;\n      }\n      function toConfidence(value) {\n        const n = toNumber(value);\n        if (n === null || n < 0) return 0;\n        return n > 1 ? 1 : n;\n      }\n      function toText(value) {\n        if (value === null || value === void 0) return \"\";\n        return String(value).trim();\n      }\n      function toList(value) {\n        if (value === null || value === void 0) return [];\n        const parts = Array.isArray(value) ? value : String(value).split(\",\");\n        return parts.map((p) => String(p).trim().toLowerCase()).filter(Boolean);\n      }\n      function toBool(value, fallback) {\n        const text = toText(value).toLowerCase();\n        if (text === \"\") return fallback === void 0 ? false : fallback;\n        return text === \"yes\" || text === \"true\" || text === \"1\" || text === \"y\";\n      }\n      module.exports = { toNumber, toConfidence, toText, toList, toBool };\n    }\n  });\n\n  // src/verdict/spec.js\n  var require_spec = __commonJS({\n    \"src/verdict/spec.js\"(exports, module) {\n      \"use strict\";\n      var { toNumber, toConfidence, toText, toList, toBool } = require_coerce();\n      var CHECKS = [\"numeric\", \"absent\"];\n      var DIRECTIONS = [\"min\", \"max\"];\n      function normaliseParam(raw) {\n        const row = raw && typeof raw === \"object\" ? raw : {};\n        const param = toText(row.param).toLowerCase();\n        const check = (toText(row.check) || \"numeric\").toLowerCase();\n        const out = {\n          param,\n          label: toText(row.label) || param,\n          unit: toText(row.unit),\n          check,\n          direction: null,\n          threshold: null,\n          values: toList(row.values),\n          tolerance_pct: toNumber(row.tolerance_pct),\n          required: toBool(row.required, true),\n          error: null\n        };\n        if (!param) {\n          out.error = \"the row names no parameter\";\n          return out;\n        }\n        if (!CHECKS.includes(check)) {\n          out.error = `unknown check \"${check}\", expected one of ${CHECKS.join(\", \")}`;\n          return out;\n        }\n        if (check === \"numeric\") {\n          const direction = toText(row.direction).toLowerCase();\n          const threshold = toNumber(row.threshold);\n          if (!DIRECTIONS.includes(direction)) {\n            out.error = `direction must be min or max, not \"${toText(row.direction)}\"`;\n            return out;\n          }\n          if (threshold === null) {\n            out.error = `threshold \"${toText(row.threshold)}\" is not a number`;\n            return out;\n          }\n          out.direction = direction;\n          out.threshold = threshold;\n          return out;\n        }\n        if (out.values.length === 0) {\n          out.error = \"an absent check names nothing to exclude\";\n          return out;\n        }\n        return out;\n      }\n      function normaliseSpec(rows) {\n        const list = Array.isArray(rows) ? rows : rows ? [rows] : [];\n        const params = list.map(normaliseParam);\n        const head = list[0] && typeof list[0] === \"object\" ? list[0] : {};\n        return {\n          spec_id: toText(head.spec_id),\n          contract_ref: toText(head.contract_ref),\n          commodity: toText(head.commodity),\n          tolerance_pct: toNumber(head.tolerance_pct),\n          params,\n          errors: params.filter((p) => p.error).map((p) => ({ param: p.param, detail: p.error }))\n        };\n      }\n      function normaliseExtraction(raw) {\n        const ex = raw && typeof raw === \"object\" ? raw : {};\n        const values = {};\n        const confidence = {};\n        const rawValues = ex.values && typeof ex.values === \"object\" ? ex.values : {};\n        for (const key of Object.keys(rawValues)) values[key.toLowerCase()] = toNumber(rawValues[key]);\n        const rawConfidence = ex.confidence && typeof ex.confidence === \"object\" ? ex.confidence : {};\n        for (const key of Object.keys(rawConfidence)) confidence[key.toLowerCase()] = toConfidence(rawConfidence[key]);\n        return {\n          values,\n          defects: toList(ex.defects),\n          notes: toText(ex.notes),\n          confidence\n        };\n      }\n      module.exports = { normaliseSpec, normaliseParam, normaliseExtraction, CHECKS, DIRECTIONS };\n    }\n  });\n\n  // src/verdict/engine.js\n  var require_engine = __commonJS({\n    \"src/verdict/engine.js\"(exports, module) {\n      \"use strict\";\n      var { normaliseSpec, normaliseExtraction } = require_spec();\n      var CONF_MIN = 0.7;\n      var DEFAULT_TOLERANCE_PCT = 2;\n      var VERDICTS = [\"pass\", \"borderline\", \"fail\", \"needs_review\"];\n      function compare(param, value, tolerance) {\n        const { threshold, direction } = param;\n        const band = Math.abs(threshold * tolerance);\n        const pass = direction === \"min\" ? value >= threshold : value <= threshold;\n        const near = direction === \"min\" ? value >= threshold - band && value < threshold : value > threshold && value <= threshold + band;\n        return {\n          param: param.param,\n          label: param.label,\n          unit: param.unit,\n          check: \"numeric\",\n          result: pass ? \"pass\" : near ? \"borderline\" : \"fail\",\n          value,\n          threshold,\n          direction,\n          detail: `${value}${param.unit} vs ${direction} ${threshold}${param.unit}`\n        };\n      }\n      function exclude(param, defects) {\n        const found = param.values.filter((v) => defects.includes(v));\n        return {\n          param: param.param,\n          label: param.label,\n          unit: \"\",\n          check: \"absent\",\n          result: found.length > 0 ? \"fail\" : \"pass\",\n          value: found.join(\", \"),\n          excluded: param.values,\n          detail: found.length > 0 ? `excluded condition present: ${found.join(\", \")}` : `none of ${param.values.join(\", \")} reported`\n        };\n      }\n      function runVerdict(input) {\n        const spec = normaliseSpec(input && input.spec);\n        const ex = normaliseExtraction(input && input.extracted);\n        if (spec.params.length === 0) {\n          return {\n            verdict: \"needs_review\",\n            reasons: [{ param: null, result: \"spec_missing\", detail: \"the spec has no parameters\" }]\n          };\n        }\n        if (spec.errors.length > 0) {\n          return {\n            verdict: \"needs_review\",\n            reasons: spec.errors.map((e) => ({ param: e.param, result: \"spec_invalid\", detail: e.detail }))\n          };\n        }\n        const numeric = spec.params.filter((p) => p.check === \"numeric\" && p.required);\n        const missing = numeric.filter((p) => ex.values[p.param] === null || ex.values[p.param] === void 0);\n        const lowConf = numeric.filter((p) => !missing.includes(p)).filter((p) => (ex.confidence[p.param] || 0) < CONF_MIN);\n        if (missing.length > 0 || lowConf.length > 0) {\n          return {\n            verdict: \"needs_review\",\n            reasons: [\n              ...missing.map((p) => ({\n                param: p.param,\n                label: p.label,\n                result: \"missing\",\n                detail: \"not stated in the evaluation\"\n              })),\n              ...lowConf.map((p) => ({\n                param: p.param,\n                label: p.label,\n                result: \"low_confidence\",\n                value: ex.confidence[p.param] || 0,\n                threshold: CONF_MIN,\n                detail: `confidence ${ex.confidence[p.param] || 0} below ${CONF_MIN}`\n              }))\n            ]\n          };\n        }\n        const specTolerance = spec.tolerance_pct === null ? DEFAULT_TOLERANCE_PCT : spec.tolerance_pct;\n        const reasons = spec.params.map((p) => {\n          if (p.check === \"absent\") return exclude(p, ex.defects);\n          const value = ex.values[p.param];\n          if (value === null || value === void 0) {\n            return {\n              param: p.param,\n              label: p.label,\n              unit: p.unit,\n              check: \"numeric\",\n              result: \"skipped\",\n              detail: \"optional and not stated\"\n            };\n          }\n          const tolerance = (p.tolerance_pct === null ? specTolerance : p.tolerance_pct) / 100;\n          return compare(p, value, tolerance);\n        });\n        const results = reasons.map((r) => r.result);\n        const verdict = results.includes(\"fail\") ? \"fail\" : results.includes(\"borderline\") ? \"borderline\" : \"pass\";\n        return { verdict, reasons };\n      }\n      module.exports = { runVerdict, compare, exclude, CONF_MIN, DEFAULT_TOLERANCE_PCT, VERDICTS };\n    }\n  });\n\n  // src/verdict/status.js\n  var require_status = __commonJS({\n    \"src/verdict/status.js\"(exports, module) {\n      \"use strict\";\n      var STATUSES = [\n        \"dispatched\",\n        \"in_transit\",\n        \"received\",\n        \"evaluated\",\n        \"needs_review\",\n        \"approved\",\n        \"rejected\",\n        \"resample_requested\"\n      ];\n      var TRANSITIONS = {\n        dispatched: [\"in_transit\", \"received\"],\n        in_transit: [\"received\"],\n        received: [\"evaluated\", \"needs_review\"],\n        needs_review: [\"evaluated\", \"needs_review\"],\n        evaluated: [\"approved\", \"rejected\", \"resample_requested\"],\n        approved: [],\n        rejected: [],\n        resample_requested: []\n      };\n      var SETTLED = Object.keys(TRANSITIONS).filter((s) => TRANSITIONS[s].length === 0);\n      var DECISIONS = {\n        approve: { decision: \"approved\", status: \"approved\" },\n        reject: { decision: \"rejected\", status: \"rejected\" },\n        resample: { decision: \"resample_requested\", status: \"resample_requested\" }\n      };\n      function isStatus(value) {\n        return STATUSES.includes(String(value || \"\").trim().toLowerCase());\n      }\n      function canTransition(from, to) {\n        const a = String(from || \"\").trim().toLowerCase();\n        const b = String(to || \"\").trim().toLowerCase();\n        if (!isStatus(a)) return { ok: false, from: a, to: b, reason: `\"${from}\" is not a status this workflow writes` };\n        if (!isStatus(b)) return { ok: false, from: a, to: b, reason: `\"${to}\" is not a status this workflow writes` };\n        if (SETTLED.includes(a)) return { ok: false, from: a, to: b, reason: `the sample is already ${a} and settled` };\n        if (!TRANSITIONS[a].includes(b)) return { ok: false, from: a, to: b, reason: `a sample cannot go from ${a} to ${b}` };\n        return { ok: true, from: a, to: b, reason: null };\n      }\n      function statusForVerdict(verdict) {\n        return verdict === \"needs_review\" ? \"needs_review\" : \"evaluated\";\n      }\n      function decisionFor(action) {\n        const key = String(action || \"\").trim().toLowerCase();\n        return Object.prototype.hasOwnProperty.call(DECISIONS, key) ? DECISIONS[key] : null;\n      }\n      module.exports = { STATUSES, TRANSITIONS, SETTLED, DECISIONS, isStatus, canTransition, statusForVerdict, decisionFor };\n    }\n  });\n\n  // src/verdict/callback.js\n  var require_callback = __commonJS({\n    \"src/verdict/callback.js\"(exports, module) {\n      \"use strict\";\n      var MAX_BYTES = 64;\n      var PREFIX = \"d\";\n      var ACTIONS = [\"approve\", \"reject\", \"resample\"];\n      function utf8Length(text) {\n        let bytes = 0;\n        for (const ch of String(text)) {\n          const cp = ch.codePointAt(0);\n          if (cp < 128) bytes += 1;\n          else if (cp < 2048) bytes += 2;\n          else if (cp < 65536) bytes += 3;\n          else bytes += 4;\n        }\n        return bytes;\n      }\n      function encodeCallback(sampleId, action) {\n        const id = String(sampleId || \"\").trim();\n        const act = String(action || \"\").trim().toLowerCase();\n        if (!id) throw new Error(\"callback data needs a sample id\");\n        if (!ACTIONS.includes(act)) throw new Error(`unknown action \"${action}\"`);\n        const data = `${PREFIX}|${id}|${act}`;\n        const bytes = utf8Length(data);\n        if (bytes > MAX_BYTES) throw new Error(`callback data is ${bytes} bytes, over the ${MAX_BYTES} byte limit`);\n        return data;\n      }\n      function parseCallback(data) {\n        const parts = String(data || \"\").split(\"|\");\n        if (parts.length !== 3 || parts[0] !== PREFIX) {\n          return { ok: false, sample_id: null, action: null, reason: \"the button payload is not one this workflow issued\" };\n        }\n        const [, sampleId, action] = parts;\n        if (!ACTIONS.includes(action)) {\n          return { ok: false, sample_id: sampleId, action: null, reason: `unknown action \"${action}\"` };\n        }\n        return { ok: true, sample_id: sampleId, action, reason: null };\n      }\n      module.exports = { encodeCallback, parseCallback, utf8Length, ACTIONS, MAX_BYTES };\n    }\n  });\n\n  // src/verdict/card.js\n  var require_card = __commonJS({\n    \"src/verdict/card.js\"(exports, module) {\n      \"use strict\";\n      var { encodeCallback } = require_callback();\n      var MARKERS = {\n        pass: \"v\",\n        fail: \"x\",\n        borderline: \"~\",\n        skipped: \"-\",\n        missing: \"?\",\n        low_confidence: \"?\",\n        spec_missing: \"!\",\n        spec_invalid: \"!\"\n      };\n      var INPUT_PHRASE = {\n        voice: \"a voice note\",\n        photo: \"a photo of the grading sheet\",\n        text: \"a typed message\"\n      };\n      function line(reason) {\n        const marker = MARKERS[reason.result] || \"-\";\n        const label = reason.label || reason.param || \"spec\";\n        const unit = reason.unit || \"\";\n        switch (reason.result) {\n          case \"pass\":\n            if (reason.check === \"absent\") return `${marker} ${label}: none reported`;\n            return `${marker} ${label} ${reason.value}${unit} meets ${reason.direction} ${reason.threshold}${unit}`;\n          case \"fail\":\n            if (reason.check === \"absent\") return `${marker} ${label}: ${reason.value} reported`;\n            return reason.direction === \"max\" ? `${marker} ${label} ${reason.value}${unit} exceeds max ${reason.threshold}${unit}` : `${marker} ${label} ${reason.value}${unit} below min ${reason.threshold}${unit}`;\n          case \"borderline\":\n            return `${marker} ${label} ${reason.value}${unit} is within tolerance of ${reason.direction} ${reason.threshold}${unit}`;\n          case \"skipped\":\n            return `${marker} ${label} not stated, and optional`;\n          case \"missing\":\n            return `${marker} ${label} not stated`;\n          case \"low_confidence\":\n            return `${marker} ${label} unclear in the evaluation`;\n          default:\n            return `${marker} ${label}: ${reason.detail}`;\n        }\n      }\n      function renderVerdictCard(input) {\n        const sample = input && input.sample || {};\n        const result = input && input.verdict || {};\n        const reasons = Array.isArray(result.reasons) ? result.reasons : [];\n        const verdict = String(result.verdict || \"needs_review\");\n        const head = [sample.sample_id, sample.lot_ref ? `Lot ${sample.lot_ref}` : null].filter(Boolean).join(\" - \");\n        const parts = [head, `Verdict: ${verdict.toUpperCase().replace(\"_\", \" \")}`, \"\"];\n        for (const reason of reasons) parts.push(line(reason));\n        parts.push(\"\");\n        const who = sample.evaluator ? `Assessed by ${sample.evaluator}` : \"Assessed\";\n        const how = INPUT_PHRASE[sample.input_type] ? ` from ${INPUT_PHRASE[sample.input_type]}` : \"\";\n        parts.push(`${who}${how} against spec ${sample.spec_id || \"unknown\"}.`);\n        if (input && input.notice) parts.push(\"\", input.notice);\n        const keyboard = verdict === \"needs_review\" ? null : {\n          inline_keyboard: [[\n            { text: \"Approve\", callback_data: encodeCallback(sample.sample_id, \"approve\") },\n            { text: \"Reject\", callback_data: encodeCallback(sample.sample_id, \"reject\") },\n            { text: \"Re-sample\", callback_data: encodeCallback(sample.sample_id, \"resample\") }\n          ]]\n        };\n        return { text: parts.join(\"\\n\"), keyboard };\n      }\n      module.exports = { renderVerdictCard, line, MARKERS, INPUT_PHRASE };\n    }\n  });\n\n  // src/verdict/index.js\n  var require_index = __commonJS({\n    \"src/verdict/index.js\"(exports, module) {\n      var engine = require_engine();\n      var spec = require_spec();\n      var status = require_status();\n      var card = require_card();\n      var callback = require_callback();\n      var coerce = require_coerce();\n      var VERDICT_VERSION = \"0.1.0\";\n      module.exports = {\n        VERDICT_VERSION,\n        runVerdict: engine.runVerdict,\n        CONF_MIN: engine.CONF_MIN,\n        DEFAULT_TOLERANCE_PCT: engine.DEFAULT_TOLERANCE_PCT,\n        VERDICTS: engine.VERDICTS,\n        normaliseSpec: spec.normaliseSpec,\n        normaliseExtraction: spec.normaliseExtraction,\n        STATUSES: status.STATUSES,\n        TRANSITIONS: status.TRANSITIONS,\n        canTransition: status.canTransition,\n        statusForVerdict: status.statusForVerdict,\n        decisionFor: status.decisionFor,\n        renderVerdictCard: card.renderVerdictCard,\n        // The stamp that replaces the buttons once a decision is made. Pure text assembly, so it\n        // belongs on the deterministic side with the card it overwrites.\n        decisionStamp: (row) => [\n          `${row.sample_id} - ${{ approved: \"Approved\", rejected: \"Rejected\", resample_requested: \"Re-sample requested\" }[(row.update || {}).decision] || (row.update || {}).decision} by ${(row.update || {}).decision_by}.`,\n          (row.update || {}).decision_note ? `Reason: ${(row.update || {}).decision_note}` : \"\"\n        ].filter(Boolean).join(String.fromCharCode(10)),\n        encodeCallback: callback.encodeCallback,\n        parseCallback: callback.parseCallback,\n        toNumber: coerce.toNumber,\n        toText: coerce.toText,\n        toList: coerce.toList\n      };\n    }\n  });\n  return require_index();\n})();\n\n\n// Adapter: decision-update  (Flow D, Decision)\n//\n// The row the decision writes, and nothing else. The decider's handle came off the callback\n// sender in the gate, never off anything typed, and it is carried through unchanged.\n//\n// Node settings: JavaScript, Run Once for All Items.\n\nconst gate = $('Decision gate').first().json;\nconst reason = $input.first().json.decision_note;\n\nreturn [\n  {\n    json: Object.assign({ sample_id: gate.sample_id }, gate.update, {\n      decision_note: reason === undefined || reason === null ? '' : String(reason),\n    }),\n  },\n];\n"
+      },
+      "name": "Build decision update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "notes": "The decider handle came off the callback sender in the gate, never off anything typed.",
+      "position": [
+        1540,
+        3400
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_THE_ID_OF_THE_STORE_WORKFLOW",
+          "cachedResultName": "Sample Trail - store"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operation": "update",
+            "table": "register",
+            "column": "",
+            "value": "",
+            "row": "={{ JSON.stringify($json) }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "name": "Record the decision",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "notes": "The only write in the workflow that closes a sample.",
+      "alwaysOutputData": true,
+      "position": [
+        1760,
+        3400
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_THE_ID_OF_THE_STORE_WORKFLOW",
+          "cachedResultName": "Sample Trail - store"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operation": "append",
+            "table": "log",
+            "column": "",
+            "value": "",
+            "row": "={{ JSON.stringify({ \"ts\": $('Decision gate').first().json.log.ts, \"sample_id\": $('Decision gate').first().json.log.sample_id, \"actor\": $('Decision gate').first().json.log.actor, \"action\": $('Decision gate').first().json.log.action, \"from_status\": $('Decision gate').first().json.log.from_status, \"to_status\": $('Decision gate').first().json.log.to_status, \"note\": \"\" }) }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "name": "Log the decision",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "notes": "",
+      "alwaysOutputData": true,
+      "position": [
+        1980,
+        3400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// verdict 0.1.0  build fd44925a8b6c\n// Source: src/verdict/ and src/adapters/verdict/. Rebuild with npm run bundle.\n\"use strict\";\nvar ST_VERDICT = (() => {\n  var __getOwnPropNames = Object.getOwnPropertyNames;\n  var __commonJS = (cb, mod) => function __require() {\n    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;\n  };\n\n  // src/verdict/coerce.js\n  var require_coerce = __commonJS({\n    \"src/verdict/coerce.js\"(exports, module) {\n      \"use strict\";\n      function toNumber(value) {\n        if (value === null || value === void 0 || value === \"\") return null;\n        if (typeof value === \"number\") return Number.isFinite(value) ? value : null;\n        if (typeof value !== \"string\") return null;\n        const cleaned = value.trim().replace(/^([+-]?\\d+),(\\d{1,2})$/, \"$1.$2\");\n        if (!/^[+-]?\\d+(\\.\\d+)?$/.test(cleaned)) return null;\n        const n = Number(cleaned);\n        return Number.isFinite(n) ? n : null;\n      }\n      function toConfidence(value) {\n        const n = toNumber(value);\n        if (n === null || n < 0) return 0;\n        return n > 1 ? 1 : n;\n      }\n      function toText(value) {\n        if (value === null || value === void 0) return \"\";\n        return String(value).trim();\n      }\n      function toList(value) {\n        if (value === null || value === void 0) return [];\n        const parts = Array.isArray(value) ? value : String(value).split(\",\");\n        return parts.map((p) => String(p).trim().toLowerCase()).filter(Boolean);\n      }\n      function toBool(value, fallback) {\n        const text = toText(value).toLowerCase();\n        if (text === \"\") return fallback === void 0 ? false : fallback;\n        return text === \"yes\" || text === \"true\" || text === \"1\" || text === \"y\";\n      }\n      module.exports = { toNumber, toConfidence, toText, toList, toBool };\n    }\n  });\n\n  // src/verdict/spec.js\n  var require_spec = __commonJS({\n    \"src/verdict/spec.js\"(exports, module) {\n      \"use strict\";\n      var { toNumber, toConfidence, toText, toList, toBool } = require_coerce();\n      var CHECKS = [\"numeric\", \"absent\"];\n      var DIRECTIONS = [\"min\", \"max\"];\n      function normaliseParam(raw) {\n        const row = raw && typeof raw === \"object\" ? raw : {};\n        const param = toText(row.param).toLowerCase();\n        const check = (toText(row.check) || \"numeric\").toLowerCase();\n        const out = {\n          param,\n          label: toText(row.label) || param,\n          unit: toText(row.unit),\n          check,\n          direction: null,\n          threshold: null,\n          values: toList(row.values),\n          tolerance_pct: toNumber(row.tolerance_pct),\n          required: toBool(row.required, true),\n          error: null\n        };\n        if (!param) {\n          out.error = \"the row names no parameter\";\n          return out;\n        }\n        if (!CHECKS.includes(check)) {\n          out.error = `unknown check \"${check}\", expected one of ${CHECKS.join(\", \")}`;\n          return out;\n        }\n        if (check === \"numeric\") {\n          const direction = toText(row.direction).toLowerCase();\n          const threshold = toNumber(row.threshold);\n          if (!DIRECTIONS.includes(direction)) {\n            out.error = `direction must be min or max, not \"${toText(row.direction)}\"`;\n            return out;\n          }\n          if (threshold === null) {\n            out.error = `threshold \"${toText(row.threshold)}\" is not a number`;\n            return out;\n          }\n          out.direction = direction;\n          out.threshold = threshold;\n          return out;\n        }\n        if (out.values.length === 0) {\n          out.error = \"an absent check names nothing to exclude\";\n          return out;\n        }\n        return out;\n      }\n      function normaliseSpec(rows) {\n        const list = Array.isArray(rows) ? rows : rows ? [rows] : [];\n        const params = list.map(normaliseParam);\n        const head = list[0] && typeof list[0] === \"object\" ? list[0] : {};\n        return {\n          spec_id: toText(head.spec_id),\n          contract_ref: toText(head.contract_ref),\n          commodity: toText(head.commodity),\n          tolerance_pct: toNumber(head.tolerance_pct),\n          params,\n          errors: params.filter((p) => p.error).map((p) => ({ param: p.param, detail: p.error }))\n        };\n      }\n      function normaliseExtraction(raw) {\n        const ex = raw && typeof raw === \"object\" ? raw : {};\n        const values = {};\n        const confidence = {};\n        const rawValues = ex.values && typeof ex.values === \"object\" ? ex.values : {};\n        for (const key of Object.keys(rawValues)) values[key.toLowerCase()] = toNumber(rawValues[key]);\n        const rawConfidence = ex.confidence && typeof ex.confidence === \"object\" ? ex.confidence : {};\n        for (const key of Object.keys(rawConfidence)) confidence[key.toLowerCase()] = toConfidence(rawConfidence[key]);\n        return {\n          values,\n          defects: toList(ex.defects),\n          notes: toText(ex.notes),\n          confidence\n        };\n      }\n      module.exports = { normaliseSpec, normaliseParam, normaliseExtraction, CHECKS, DIRECTIONS };\n    }\n  });\n\n  // src/verdict/engine.js\n  var require_engine = __commonJS({\n    \"src/verdict/engine.js\"(exports, module) {\n      \"use strict\";\n      var { normaliseSpec, normaliseExtraction } = require_spec();\n      var CONF_MIN = 0.7;\n      var DEFAULT_TOLERANCE_PCT = 2;\n      var VERDICTS = [\"pass\", \"borderline\", \"fail\", \"needs_review\"];\n      function compare(param, value, tolerance) {\n        const { threshold, direction } = param;\n        const band = Math.abs(threshold * tolerance);\n        const pass = direction === \"min\" ? value >= threshold : value <= threshold;\n        const near = direction === \"min\" ? value >= threshold - band && value < threshold : value > threshold && value <= threshold + band;\n        return {\n          param: param.param,\n          label: param.label,\n          unit: param.unit,\n          check: \"numeric\",\n          result: pass ? \"pass\" : near ? \"borderline\" : \"fail\",\n          value,\n          threshold,\n          direction,\n          detail: `${value}${param.unit} vs ${direction} ${threshold}${param.unit}`\n        };\n      }\n      function exclude(param, defects) {\n        const found = param.values.filter((v) => defects.includes(v));\n        return {\n          param: param.param,\n          label: param.label,\n          unit: \"\",\n          check: \"absent\",\n          result: found.length > 0 ? \"fail\" : \"pass\",\n          value: found.join(\", \"),\n          excluded: param.values,\n          detail: found.length > 0 ? `excluded condition present: ${found.join(\", \")}` : `none of ${param.values.join(\", \")} reported`\n        };\n      }\n      function runVerdict(input) {\n        const spec = normaliseSpec(input && input.spec);\n        const ex = normaliseExtraction(input && input.extracted);\n        if (spec.params.length === 0) {\n          return {\n            verdict: \"needs_review\",\n            reasons: [{ param: null, result: \"spec_missing\", detail: \"the spec has no parameters\" }]\n          };\n        }\n        if (spec.errors.length > 0) {\n          return {\n            verdict: \"needs_review\",\n            reasons: spec.errors.map((e) => ({ param: e.param, result: \"spec_invalid\", detail: e.detail }))\n          };\n        }\n        const numeric = spec.params.filter((p) => p.check === \"numeric\" && p.required);\n        const missing = numeric.filter((p) => ex.values[p.param] === null || ex.values[p.param] === void 0);\n        const lowConf = numeric.filter((p) => !missing.includes(p)).filter((p) => (ex.confidence[p.param] || 0) < CONF_MIN);\n        if (missing.length > 0 || lowConf.length > 0) {\n          return {\n            verdict: \"needs_review\",\n            reasons: [\n              ...missing.map((p) => ({\n                param: p.param,\n                label: p.label,\n                result: \"missing\",\n                detail: \"not stated in the evaluation\"\n              })),\n              ...lowConf.map((p) => ({\n                param: p.param,\n                label: p.label,\n                result: \"low_confidence\",\n                value: ex.confidence[p.param] || 0,\n                threshold: CONF_MIN,\n                detail: `confidence ${ex.confidence[p.param] || 0} below ${CONF_MIN}`\n              }))\n            ]\n          };\n        }\n        const specTolerance = spec.tolerance_pct === null ? DEFAULT_TOLERANCE_PCT : spec.tolerance_pct;\n        const reasons = spec.params.map((p) => {\n          if (p.check === \"absent\") return exclude(p, ex.defects);\n          const value = ex.values[p.param];\n          if (value === null || value === void 0) {\n            return {\n              param: p.param,\n              label: p.label,\n              unit: p.unit,\n              check: \"numeric\",\n              result: \"skipped\",\n              detail: \"optional and not stated\"\n            };\n          }\n          const tolerance = (p.tolerance_pct === null ? specTolerance : p.tolerance_pct) / 100;\n          return compare(p, value, tolerance);\n        });\n        const results = reasons.map((r) => r.result);\n        const verdict = results.includes(\"fail\") ? \"fail\" : results.includes(\"borderline\") ? \"borderline\" : \"pass\";\n        return { verdict, reasons };\n      }\n      module.exports = { runVerdict, compare, exclude, CONF_MIN, DEFAULT_TOLERANCE_PCT, VERDICTS };\n    }\n  });\n\n  // src/verdict/status.js\n  var require_status = __commonJS({\n    \"src/verdict/status.js\"(exports, module) {\n      \"use strict\";\n      var STATUSES = [\n        \"dispatched\",\n        \"in_transit\",\n        \"received\",\n        \"evaluated\",\n        \"needs_review\",\n        \"approved\",\n        \"rejected\",\n        \"resample_requested\"\n      ];\n      var TRANSITIONS = {\n        dispatched: [\"in_transit\", \"received\"],\n        in_transit: [\"received\"],\n        received: [\"evaluated\", \"needs_review\"],\n        needs_review: [\"evaluated\", \"needs_review\"],\n        evaluated: [\"approved\", \"rejected\", \"resample_requested\"],\n        approved: [],\n        rejected: [],\n        resample_requested: []\n      };\n      var SETTLED = Object.keys(TRANSITIONS).filter((s) => TRANSITIONS[s].length === 0);\n      var DECISIONS = {\n        approve: { decision: \"approved\", status: \"approved\" },\n        reject: { decision: \"rejected\", status: \"rejected\" },\n        resample: { decision: \"resample_requested\", status: \"resample_requested\" }\n      };\n      function isStatus(value) {\n        return STATUSES.includes(String(value || \"\").trim().toLowerCase());\n      }\n      function canTransition(from, to) {\n        const a = String(from || \"\").trim().toLowerCase();\n        const b = String(to || \"\").trim().toLowerCase();\n        if (!isStatus(a)) return { ok: false, from: a, to: b, reason: `\"${from}\" is not a status this workflow writes` };\n        if (!isStatus(b)) return { ok: false, from: a, to: b, reason: `\"${to}\" is not a status this workflow writes` };\n        if (SETTLED.includes(a)) return { ok: false, from: a, to: b, reason: `the sample is already ${a} and settled` };\n        if (!TRANSITIONS[a].includes(b)) return { ok: false, from: a, to: b, reason: `a sample cannot go from ${a} to ${b}` };\n        return { ok: true, from: a, to: b, reason: null };\n      }\n      function statusForVerdict(verdict) {\n        return verdict === \"needs_review\" ? \"needs_review\" : \"evaluated\";\n      }\n      function decisionFor(action) {\n        const key = String(action || \"\").trim().toLowerCase();\n        return Object.prototype.hasOwnProperty.call(DECISIONS, key) ? DECISIONS[key] : null;\n      }\n      module.exports = { STATUSES, TRANSITIONS, SETTLED, DECISIONS, isStatus, canTransition, statusForVerdict, decisionFor };\n    }\n  });\n\n  // src/verdict/callback.js\n  var require_callback = __commonJS({\n    \"src/verdict/callback.js\"(exports, module) {\n      \"use strict\";\n      var MAX_BYTES = 64;\n      var PREFIX = \"d\";\n      var ACTIONS = [\"approve\", \"reject\", \"resample\"];\n      function utf8Length(text) {\n        let bytes = 0;\n        for (const ch of String(text)) {\n          const cp = ch.codePointAt(0);\n          if (cp < 128) bytes += 1;\n          else if (cp < 2048) bytes += 2;\n          else if (cp < 65536) bytes += 3;\n          else bytes += 4;\n        }\n        return bytes;\n      }\n      function encodeCallback(sampleId, action) {\n        const id = String(sampleId || \"\").trim();\n        const act = String(action || \"\").trim().toLowerCase();\n        if (!id) throw new Error(\"callback data needs a sample id\");\n        if (!ACTIONS.includes(act)) throw new Error(`unknown action \"${action}\"`);\n        const data = `${PREFIX}|${id}|${act}`;\n        const bytes = utf8Length(data);\n        if (bytes > MAX_BYTES) throw new Error(`callback data is ${bytes} bytes, over the ${MAX_BYTES} byte limit`);\n        return data;\n      }\n      function parseCallback(data) {\n        const parts = String(data || \"\").split(\"|\");\n        if (parts.length !== 3 || parts[0] !== PREFIX) {\n          return { ok: false, sample_id: null, action: null, reason: \"the button payload is not one this workflow issued\" };\n        }\n        const [, sampleId, action] = parts;\n        if (!ACTIONS.includes(action)) {\n          return { ok: false, sample_id: sampleId, action: null, reason: `unknown action \"${action}\"` };\n        }\n        return { ok: true, sample_id: sampleId, action, reason: null };\n      }\n      module.exports = { encodeCallback, parseCallback, utf8Length, ACTIONS, MAX_BYTES };\n    }\n  });\n\n  // src/verdict/card.js\n  var require_card = __commonJS({\n    \"src/verdict/card.js\"(exports, module) {\n      \"use strict\";\n      var { encodeCallback } = require_callback();\n      var MARKERS = {\n        pass: \"v\",\n        fail: \"x\",\n        borderline: \"~\",\n        skipped: \"-\",\n        missing: \"?\",\n        low_confidence: \"?\",\n        spec_missing: \"!\",\n        spec_invalid: \"!\"\n      };\n      var INPUT_PHRASE = {\n        voice: \"a voice note\",\n        photo: \"a photo of the grading sheet\",\n        text: \"a typed message\"\n      };\n      function line(reason) {\n        const marker = MARKERS[reason.result] || \"-\";\n        const label = reason.label || reason.param || \"spec\";\n        const unit = reason.unit || \"\";\n        switch (reason.result) {\n          case \"pass\":\n            if (reason.check === \"absent\") return `${marker} ${label}: none reported`;\n            return `${marker} ${label} ${reason.value}${unit} meets ${reason.direction} ${reason.threshold}${unit}`;\n          case \"fail\":\n            if (reason.check === \"absent\") return `${marker} ${label}: ${reason.value} reported`;\n            return reason.direction === \"max\" ? `${marker} ${label} ${reason.value}${unit} exceeds max ${reason.threshold}${unit}` : `${marker} ${label} ${reason.value}${unit} below min ${reason.threshold}${unit}`;\n          case \"borderline\":\n            return `${marker} ${label} ${reason.value}${unit} is within tolerance of ${reason.direction} ${reason.threshold}${unit}`;\n          case \"skipped\":\n            return `${marker} ${label} not stated, and optional`;\n          case \"missing\":\n            return `${marker} ${label} not stated`;\n          case \"low_confidence\":\n            return `${marker} ${label} unclear in the evaluation`;\n          default:\n            return `${marker} ${label}: ${reason.detail}`;\n        }\n      }\n      function renderVerdictCard(input) {\n        const sample = input && input.sample || {};\n        const result = input && input.verdict || {};\n        const reasons = Array.isArray(result.reasons) ? result.reasons : [];\n        const verdict = String(result.verdict || \"needs_review\");\n        const head = [sample.sample_id, sample.lot_ref ? `Lot ${sample.lot_ref}` : null].filter(Boolean).join(\" - \");\n        const parts = [head, `Verdict: ${verdict.toUpperCase().replace(\"_\", \" \")}`, \"\"];\n        for (const reason of reasons) parts.push(line(reason));\n        parts.push(\"\");\n        const who = sample.evaluator ? `Assessed by ${sample.evaluator}` : \"Assessed\";\n        const how = INPUT_PHRASE[sample.input_type] ? ` from ${INPUT_PHRASE[sample.input_type]}` : \"\";\n        parts.push(`${who}${how} against spec ${sample.spec_id || \"unknown\"}.`);\n        if (input && input.notice) parts.push(\"\", input.notice);\n        const keyboard = verdict === \"needs_review\" ? null : {\n          inline_keyboard: [[\n            { text: \"Approve\", callback_data: encodeCallback(sample.sample_id, \"approve\") },\n            { text: \"Reject\", callback_data: encodeCallback(sample.sample_id, \"reject\") },\n            { text: \"Re-sample\", callback_data: encodeCallback(sample.sample_id, \"resample\") }\n          ]]\n        };\n        return { text: parts.join(\"\\n\"), keyboard };\n      }\n      module.exports = { renderVerdictCard, line, MARKERS, INPUT_PHRASE };\n    }\n  });\n\n  // src/verdict/index.js\n  var require_index = __commonJS({\n    \"src/verdict/index.js\"(exports, module) {\n      var engine = require_engine();\n      var spec = require_spec();\n      var status = require_status();\n      var card = require_card();\n      var callback = require_callback();\n      var coerce = require_coerce();\n      var VERDICT_VERSION = \"0.1.0\";\n      module.exports = {\n        VERDICT_VERSION,\n        runVerdict: engine.runVerdict,\n        CONF_MIN: engine.CONF_MIN,\n        DEFAULT_TOLERANCE_PCT: engine.DEFAULT_TOLERANCE_PCT,\n        VERDICTS: engine.VERDICTS,\n        normaliseSpec: spec.normaliseSpec,\n        normaliseExtraction: spec.normaliseExtraction,\n        STATUSES: status.STATUSES,\n        TRANSITIONS: status.TRANSITIONS,\n        canTransition: status.canTransition,\n        statusForVerdict: status.statusForVerdict,\n        decisionFor: status.decisionFor,\n        renderVerdictCard: card.renderVerdictCard,\n        // The stamp that replaces the buttons once a decision is made. Pure text assembly, so it\n        // belongs on the deterministic side with the card it overwrites.\n        decisionStamp: (row) => [\n          `${row.sample_id} - ${{ approved: \"Approved\", rejected: \"Rejected\", resample_requested: \"Re-sample requested\" }[(row.update || {}).decision] || (row.update || {}).decision} by ${(row.update || {}).decision_by}.`,\n          (row.update || {}).decision_note ? `Reason: ${(row.update || {}).decision_note}` : \"\"\n        ].filter(Boolean).join(String.fromCharCode(10)),\n        encodeCallback: callback.encodeCallback,\n        parseCallback: callback.parseCallback,\n        toNumber: coerce.toNumber,\n        toText: coerce.toText,\n        toList: coerce.toList\n      };\n    }\n  });\n  return require_index();\n})();\n\n\n// Adapter: decision-stamp  (Flow D, Decision)\n//\n// Rewrites the card in place so the chat history shows a settled record rather than three buttons\n// that no longer do anything. Somebody scrolling back a month later should be able to read the\n// outcome off the message that carried the decision.\n//\n// Node settings: JavaScript, Run Once for All Items.\n\nconst gate = $('Decision gate').first().json;\nconst card = $('Parse the button').first().json;\nconst settings = $('Settings D').first().json;\n\n// The decision is written. What follows is optional: a covering note, and the only message in\n// the workflow that reaches a counterparty. It is a link rather than an automatic send, because\n// nothing should leave the building on a tap.\nlet base = String(settings.n8n_base_url || '');\nwhile (base.endsWith('/')) base = base.slice(0, -1);\nconst noteUrl = `${base}/form/sample-decision?sample_id=${encodeURIComponent(gate.sample_id)}`;\n\nconst text = ST_VERDICT.decisionStamp\n  ? ST_VERDICT.decisionStamp(gate)\n  : `${gate.sample_id} - ${gate.update.decision} by ${gate.update.decision_by}.`;\n\nreturn [\n  {\n    json: {\n      chat_id: gate.chat_id || card.chat_id,\n      message_id: gate.message_id || card.message_id,\n      text: `${text}${String.fromCharCode(10)}${String.fromCharCode(10)}Add a note and notify the shipper:${String.fromCharCode(10)}${noteUrl}`,\n    },\n  },\n];\n"
+      },
+      "name": "Compose the stamp",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "notes": "What the card becomes once it is settled.",
+      "position": [
+        2200,
+        3400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "editMessageText",
+        "chatId": "={{ $json.chat_id }}",
+        "messageId": "={{ $json.message_id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "name": "Stamp the card",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "notes": "Strips the buttons and states the outcome, so the chat history reads as a record rather than a menu.",
+      "position": [
+        2420,
+        3400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "callback",
+        "operation": "answerQuery",
+        "queryId": "={{ $json.callback_query_id }}",
+        "additionalFields": {
+          "text": "={{ $json.reason }}"
+        }
+      },
+      "name": "Already decided",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "notes": "A double tapped button is harmless and says so, rather than writing a second decision.",
+      "onError": "continueRegularOutput",
+      "position": [
+        1540,
+        3820
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Flow D: Decision\n\nThe human gate. A press writes the decision, the handle of whoever pressed it, and a line in the log.\n\nPressing twice is harmless: the second press finds a decision already there and says who made it.\n\nThe decider name comes off the button press, never off anything typed.",
+        "height": 240,
+        "width": 460,
+        "color": 4
+      },
+      "name": "Note: Flow D: Decision",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -640,
+        -60
+      ]
+    }
+  ],
+  "connections": {
+    "Decision request": {
+      "main": [
+        [
+          {
+            "node": "Parse the button",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decision pressed (test)": {
+      "main": [
+        [
+          {
+            "node": "Parse the button",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse the button": {
+      "main": [
+        [
+          {
+            "node": "Settings D",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings D": {
+      "main": [
+        [
+          {
+            "node": "Find the sample to decide",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find the sample to decide": {
+      "main": [
+        [
+          {
+            "node": "Decision gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decision gate": {
+      "main": [
+        [
+          {
+            "node": "Decision allowed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decision allowed?": {
+      "main": [
+        [
+          {
+            "node": "Clear the spinner",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Already decided",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clear the spinner": {
+      "main": [
+        [
+          {
+            "node": "Build decision update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build decision update": {
+      "main": [
+        [
+          {
+            "node": "Record the decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record the decision": {
+      "main": [
+        [
+          {
+            "node": "Log the decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log the decision": {
+      "main": [
+        [
+          {
+            "node": "Compose the stamp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compose the stamp": {
+      "main": [
+        [
+          {
+            "node": "Stamp the card",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

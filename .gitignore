@@ -1,0 +1,22 @@
+# Secrets
+.env
+.env.*
+!.env.example
+.credentials.map.json
+
+# Which instance this is: table ids, chat ids. Local, never committed.
+.instance.json
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Generated. Nothing under build/ or dist/ is ever committed, so there is no drift to reconcile.
+build/
+dist/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

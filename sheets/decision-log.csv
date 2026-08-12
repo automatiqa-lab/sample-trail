@@ -1,0 +1,8 @@
+ts,sample_id,actor,action,from_status,to_status,note
+2026-08-03T08:14:00.000Z,ST-20260803-K7QM,@dispatch_origin,dispatched,,dispatched,courier NW-88213
+2026-08-05T09:02:00.000Z,ST-20260803-K7QM,@sample_room,received,dispatched,received,intact
+2026-08-06T14:41:00.000Z,ST-20260803-K7QM,@grader_a,evaluated,received,evaluated,"voice note, verdict pass"
+2026-08-06T15:10:00.000Z,ST-20260803-K7QM,@desk_lead,approve,evaluated,approved,
+2026-08-07T06:30:00.000Z,ST-20260807-B4XT,@dispatch_origin,dispatched,,dispatched,
+2026-08-08T11:20:00.000Z,ST-20260807-B4XT,@sample_room,received,dispatched,received,"outer bag torn, seal intact"
+2026-08-09T13:05:00.000Z,ST-20260809-D9RC,@dispatch_origin,dispatched,,dispatched,

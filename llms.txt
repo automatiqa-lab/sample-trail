@@ -1,0 +1,24 @@
+# Sample Trail
+
+> Runs the quality approval decision on a physical commodity sample, from dispatch to verdict, on a
+> phone. Seven n8n workflows. A model reads a photographed grading sheet into named values; a
+> deterministic Code node compares those against the contract specification; a named person decides.
+
+Sample Trail serves agri-food and soft commodities: coffee, cocoa, grain, sugar, cotton, nuts. The
+quality parameters are rows in a store, one per parameter, so the same workflows serve any of them
+without a code change.
+
+It is not a LIMS, not a traceability system and not a grading standard. It does not track where a
+sample physically is. It keeps the decision record: which sample, against which specification,
+judged by whom, on what evidence, and who was told.
+
+The verdict never comes from a model. The engine has no clock, no randomness and no network, so the
+same reading against the same specification produces the same verdict a year later.
+
+## Files
+
+- [README](README.md): what it does, how to install it, and the specification format
+- [Scope and limits](SCOPE.md): what it does not do and where it breaks
+- [Compliance](COMPLIANCE.md): EU AI Act classification and where a model is used
+- [Workflows](workflows/): the seven importable files
+- [Sheet templates](sheets/): a CSV per tab, with the columns and fictional seed rows

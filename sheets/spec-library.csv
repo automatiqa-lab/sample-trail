@@ -1,0 +1,16 @@
+spec_id,contract_ref,commodity,param,label,unit,check,direction,threshold,values,tolerance_pct,required,notes
+SP-COF-01,CT-9902,Coffee,moisture_pct,Moisture,%,numeric,max,12.0,,2,yes,
+SP-COF-01,CT-9902,Coffee,defect_count,Defect count,,numeric,max,5,,,yes,full defects per 300g sample
+SP-COF-01,CT-9902,Coffee,grade_score,Grade score,,numeric,min,82,,,yes,
+SP-COF-01,CT-9902,Coffee,defects,Excluded conditions,,absent,,,"mould, taint, live infestation",,yes,no tolerance applies to an exclusion
+SP-GRN-01,CT-7714,Grain,moisture_pct,Moisture,%,numeric,max,14.0,,2,yes,
+SP-GRN-01,CT-7714,Grain,foreign_matter_pct,Foreign matter,%,numeric,max,2.0,,,yes,
+SP-GRN-01,CT-7714,Grain,protein_pct,Protein,%,numeric,min,11.5,,,yes,
+SP-GRN-01,CT-7714,Grain,defects,Excluded conditions,,absent,,,"mould, live infestation",,yes,
+SP-COC-01,CT-5521,Cocoa,moisture_pct,Moisture,%,numeric,max,7.5,,3,yes,
+SP-COC-01,CT-5521,Cocoa,bean_count_per_100g,Bean count per 100g,,numeric,max,100,,,yes,
+SP-COC-01,CT-5521,Cocoa,defects,Excluded conditions,,absent,,,"mould, smoke taint, slaty beans",,yes,
+SP-NUT-01,CT-3308,Nuts,moisture_pct,Moisture,%,numeric,max,6.0,,,yes,
+SP-NUT-01,CT-3308,Nuts,oil_content_pct,Oil content,%,numeric,min,60,,,yes,
+SP-NUT-01,CT-3308,Nuts,trash_pct,Trash content,%,numeric,max,3,,,no,reported when a reading is taken
+SP-NUT-01,CT-3308,Nuts,defects,Excluded conditions,,absent,,,"mould, rancidity, live infestation",,yes,

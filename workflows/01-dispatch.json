@@ -1,0 +1,692 @@
+{
+  "name": "Sample Trail - dispatch",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "sample-dispatch",
+        "formTitle": "Dispatch a sample",
+        "formDescription": "One sample, one form. You get a QR at the end: print it, or photograph the screen. Whoever receives the sample scans it to log the arrival.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Lot reference",
+              "fieldType": "text",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Contract reference",
+              "fieldType": "text",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Commodity",
+              "fieldType": "text",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Origin",
+              "fieldType": "text",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Shipper",
+              "fieldType": "text",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Carrier reference",
+              "fieldType": "text",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Email a copy to",
+              "fieldType": "email"
+            },
+            {
+              "fieldLabel": "Sample photo",
+              "fieldName": "Sample_photo",
+              "fieldType": "file",
+              "multipleFiles": false,
+              "acceptFileTypes": ".jpg,.jpeg,.png,.heic",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "appendAttribution": false,
+          "ignoreBots": true
+        }
+      },
+      "name": "Dispatch a sample",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "sample-dispatch"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "register_table_id",
+              "type": "string",
+              "value": "PASTE_YOUR_REGISTER_TABLE_ID"
+            },
+            {
+              "name": "spec_table_id",
+              "type": "string",
+              "value": "PASTE_YOUR_SPEC_TABLE_ID"
+            },
+            {
+              "name": "log_table_id",
+              "type": "string",
+              "value": "PASTE_YOUR_LOG_TABLE_ID"
+            },
+            {
+              "name": "counterparty_table_id",
+              "type": "string",
+              "value": "PASTE_YOUR_COUNTERPARTY_TABLE_ID"
+            },
+            {
+              "name": "spreadsheet_id",
+              "type": "string",
+              "value": "PASTE_A_SPREADSHEET_ID_TO_USE_SHEETS"
+            },
+            {
+              "name": "workbook_id",
+              "type": "string",
+              "value": "PASTE_A_WORKBOOK_ID_TO_USE_EXCEL"
+            },
+            {
+              "name": "evaluator_chat_id",
+              "type": "string",
+              "value": "PASTE_YOUR_CHAT_ID"
+            },
+            {
+              "name": "dispatcher_chat_id",
+              "type": "string",
+              "value": "PASTE_YOUR_CHAT_ID"
+            },
+            {
+              "name": "sla_days",
+              "type": "number",
+              "value": 3
+            },
+            {
+              "name": "digest_weekday",
+              "type": "number",
+              "value": 1
+            },
+            {
+              "name": "digest_window_days",
+              "type": "number",
+              "value": 7
+            },
+            {
+              "name": "n8n_base_url",
+              "type": "string",
+              "value": "https://your-n8n-instance"
+            },
+            {
+              "name": "model_url",
+              "type": "string",
+              "value": "https://api.anthropic.com/v1/messages"
+            },
+            {
+              "name": "model_version",
+              "type": "string",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "model",
+              "type": "string",
+              "value": "claude-sonnet-5"
+            },
+            {
+              "name": "transcription_url",
+              "type": "string",
+              "value": ""
+            },
+            {
+              "name": "transcription_model",
+              "type": "string",
+              "value": ""
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "notes": "Everything an operator changes lives here. Spreadsheet id and chat id are the two that must.",
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// trail 0.1.0  build b65fb3678a81\n// Source: src/trail/ and src/adapters/trail/. Rebuild with npm run bundle.\n\"use strict\";\nvar ST_TRAIL = (() => {\n  var __getOwnPropNames = Object.getOwnPropertyNames;\n  var __commonJS = (cb, mod) => function __require() {\n    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;\n  };\n\n  // src/trail/ids.js\n  var require_ids = __commonJS({\n    \"src/trail/ids.js\"(exports, module) {\n      \"use strict\";\n      var ALPHABET = \"ABCDEFGHJKLMNPQRSTUVWXYZ23456789\";\n      var ID_LENGTH = 4;\n      var SAMPLE_ID_RE = /\\bST-\\d{8}-[A-Z0-9]{4}\\b/;\n      function datePart(iso) {\n        const text = String(iso || \"\");\n        const match = /^(\\d{4})-(\\d{2})-(\\d{2})/.exec(text);\n        if (!match) throw new Error(`\"${iso}\" is not an ISO timestamp`);\n        return `${match[1]}${match[2]}${match[3]}`;\n      }\n      function mintSampleId(input) {\n        const bytes = input && input.entropy || [];\n        if (bytes.length < ID_LENGTH) throw new Error(`minting an id needs ${ID_LENGTH} bytes of entropy`);\n        let suffix = \"\";\n        for (let i = 0; i < ID_LENGTH; i += 1) {\n          suffix += ALPHABET[Math.abs(Math.trunc(bytes[i])) % ALPHABET.length];\n        }\n        return `ST-${datePart(input && input.now)}-${suffix}`;\n      }\n      function isSampleId(value) {\n        const text = String(value || \"\").trim();\n        return SAMPLE_ID_RE.test(text) && text.length === 16;\n      }\n      function findSampleId(text) {\n        const match = SAMPLE_ID_RE.exec(String(text || \"\").toUpperCase());\n        return match ? match[0] : null;\n      }\n      module.exports = { mintSampleId, isSampleId, findSampleId, datePart, ALPHABET, ID_LENGTH, SAMPLE_ID_RE };\n    }\n  });\n\n  // src/trail/extraction.js\n  var require_extraction = __commonJS({\n    \"src/trail/extraction.js\"(exports, module) {\n      \"use strict\";\n      var FENCE = /^\\s*```(?:json)?\\s*([\\s\\S]*?)\\s*```\\s*$/;\n      function emptyExtraction(params) {\n        const values = {};\n        const confidence = {};\n        for (const p of (params || []).filter((param) => param.check === \"numeric\")) {\n          values[p.param] = null;\n          confidence[p.param] = 0;\n        }\n        return { values, defects: [], notes: \"\", confidence };\n      }\n      function buildExtractionPrompt(spec) {\n        const params = (spec && spec.params || []).filter((p) => p.check === \"numeric\");\n        const excluded = (spec && spec.params || []).filter((p) => p.check === \"absent\").flatMap((p) => p.values);\n        const lines = [\n          \"You read a quality evaluation of a physical commodity sample and return the values stated in it.\",\n          \"\",\n          \"Return JSON only. No prose, no explanation, no code fences.\",\n          \"\",\n          \"Fields to read:\"\n        ];\n        for (const p of params) {\n          const unit = p.unit ? ` in ${p.unit}` : \"\";\n          lines.push(`- ${p.param}: ${p.label}${unit}, as a number`);\n        }\n        lines.push(\n          \"- defects: a list of conditions the evaluation reports, in the words used\",\n          \"- notes: anything stated that does not fit a field above\",\n          \"\",\n          \"Rules:\",\n          \"- Return null for any field the evaluation does not state. Never infer a value.\",\n          \"- Never estimate, average or convert between units. Report what was said.\",\n          \"- Give a confidence between 0 and 1 for every field, reflecting how clearly it was stated.\",\n          \"- A field you could not hear or read clearly gets a low confidence, not a guess.\"\n        );\n        if (excluded.length > 0) {\n          lines.push(`- Conditions the contract excludes by name, if you hear them: ${excluded.join(\", \")}.`);\n        }\n        lines.push(\n          \"\",\n          \"Shape:\",\n          JSON.stringify(\n            {\n              values: params.reduce((acc, p) => Object.assign(acc, { [p.param]: null }), {}),\n              defects: [],\n              notes: \"\",\n              confidence: params.reduce((acc, p) => Object.assign(acc, { [p.param]: 0 }), {})\n            },\n            null,\n            2\n          )\n        );\n        return lines.join(\"\\n\");\n      }\n      function parseExtraction(raw) {\n        const text = typeof raw === \"string\" ? raw : JSON.stringify(raw === void 0 ? null : raw);\n        const stripped = FENCE.test(text) ? FENCE.exec(text)[1] : text;\n        let parsed;\n        try {\n          parsed = JSON.parse(stripped);\n        } catch (err) {\n          return { ok: false, extracted: null, reason: \"the model did not return JSON\", raw: text };\n        }\n        if (!parsed || typeof parsed !== \"object\" || Array.isArray(parsed)) {\n          return { ok: false, extracted: null, reason: \"the model returned JSON that is not an object\", raw: text };\n        }\n        if (!parsed.values || typeof parsed.values !== \"object\" || Array.isArray(parsed.values)) {\n          return { ok: false, extracted: null, reason: \"the model returned no values object\", raw: text };\n        }\n        return { ok: true, extracted: parsed, reason: null, raw: text };\n      }\n      module.exports = { buildExtractionPrompt, parseExtraction, emptyExtraction, FENCE };\n    }\n  });\n\n  // src/trail/sla.js\n  var require_sla = __commonJS({\n    \"src/trail/sla.js\"(exports, module) {\n      \"use strict\";\n      var HOUR_MS = 3600 * 1e3;\n      var DAY_MS = 24 * HOUR_MS;\n      function toMillis(iso) {\n        const ms = Date.parse(String(iso || \"\"));\n        return Number.isFinite(ms) ? ms : null;\n      }\n      function computeSlaDue(receiptIso, slaDays) {\n        const start = toMillis(receiptIso);\n        if (start === null) throw new Error(`\"${receiptIso}\" is not an ISO timestamp`);\n        const days = Number(slaDays);\n        if (!Number.isFinite(days) || days < 0) throw new Error(`\"${slaDays}\" is not a number of days`);\n        return new Date(start + days * DAY_MS).toISOString();\n      }\n      function hoursBetween(fromIso, toIso) {\n        const a = toMillis(fromIso);\n        const b = toMillis(toIso);\n        if (a === null || b === null) return null;\n        return Math.round((b - a) / HOUR_MS * 10) / 10;\n      }\n      function overdueScan(rows, nowIso) {\n        const now = toMillis(nowIso);\n        if (now === null) throw new Error(`\"${nowIso}\" is not an ISO timestamp`);\n        const nudge = [];\n        const escalate = [];\n        for (const row of rows || []) {\n          const status = String(row.status || \"\").trim().toLowerCase();\n          if (status !== \"received\" && status !== \"needs_review\") continue;\n          const due = toMillis(row.sla_due_ts);\n          if (due === null || now <= due) continue;\n          const daysOver = Math.floor((now - due) / DAY_MS);\n          const entry = {\n            sample_id: row.sample_id,\n            lot_ref: row.lot_ref || \"\",\n            status,\n            sla_due_ts: row.sla_due_ts,\n            hours_over: Math.round((now - due) / HOUR_MS * 10) / 10,\n            days_over: daysOver\n          };\n          if (daysOver < 1) nudge.push(entry);\n          else escalate.push(entry);\n        }\n        return { nudge, escalate, total: nudge.length + escalate.length };\n      }\n      module.exports = { computeSlaDue, hoursBetween, overdueScan, toMillis, HOUR_MS, DAY_MS };\n    }\n  });\n\n  // src/trail/digest.js\n  var require_digest = __commonJS({\n    \"src/trail/digest.js\"(exports, module) {\n      \"use strict\";\n      var { hoursBetween, toMillis, DAY_MS } = require_sla();\n      var COUNTED = [\"dispatched\", \"in_transit\", \"received\", \"evaluated\", \"needs_review\", \"approved\", \"rejected\", \"resample_requested\"];\n      function mean(values) {\n        if (values.length === 0) return null;\n        const total = values.reduce((a, b) => a + b, 0);\n        return Math.round(total / values.length * 10) / 10;\n      }\n      function summarise(rows, nowIso, windowDays) {\n        const now = toMillis(nowIso);\n        if (now === null) throw new Error(`\"${nowIso}\" is not an ISO timestamp`);\n        const days = Number.isFinite(Number(windowDays)) ? Number(windowDays) : 7;\n        const cutoff = days > 0 ? now - days * DAY_MS : null;\n        const counts = {};\n        for (const status of COUNTED) counts[status] = 0;\n        const decisionHours = [];\n        const stuck = [];\n        for (const row of rows || []) {\n          const status = String(row.status || \"\").trim().toLowerCase();\n          const dispatched = toMillis(row.dispatch_ts);\n          const inWindow = cutoff === null || dispatched !== null && dispatched >= cutoff;\n          if (inWindow && Object.prototype.hasOwnProperty.call(counts, status)) counts[status] += 1;\n          if (inWindow && row.decision_ts && row.receipt_ts) {\n            const hours = hoursBetween(row.receipt_ts, row.decision_ts);\n            if (hours !== null) decisionHours.push(hours);\n          }\n          const due = toMillis(row.sla_due_ts);\n          if ((status === \"received\" || status === \"needs_review\") && due !== null && now > due) {\n            stuck.push({ sample_id: row.sample_id, lot_ref: row.lot_ref || \"\", status, sla_due_ts: row.sla_due_ts });\n          }\n        }\n        const decided = counts.approved + counts.rejected + counts.resample_requested;\n        return {\n          window_days: days,\n          counts,\n          decided,\n          approval_rate_pct: decided > 0 ? Math.round(counts.approved / decided * 1e3) / 10 : null,\n          mean_hours_receipt_to_decision: mean(decisionHours),\n          stuck\n        };\n      }\n      module.exports = { summarise, mean, COUNTED };\n    }\n  });\n\n  // src/trail/rows.js\n  var require_rows = __commonJS({\n    \"src/trail/rows.js\"(exports, module) {\n      \"use strict\";\n      var REGISTER_COLUMNS = [\n        \"sample_id\",\n        \"lot_ref\",\n        \"contract_ref\",\n        \"commodity\",\n        \"origin\",\n        \"shipper\",\n        \"spec_id\",\n        \"dispatch_ts\",\n        \"dispatch_photo\",\n        \"carrier_ref\",\n        \"receipt_ts\",\n        \"receipt_condition\",\n        \"receipt_photo\",\n        \"sla_due_ts\",\n        \"eval_ts\",\n        \"evaluator\",\n        \"input_type\",\n        \"input_url\",\n        \"transcript\",\n        \"extracted_json\",\n        \"verdict\",\n        \"verdict_reasons\",\n        \"decision\",\n        \"decision_by\",\n        \"decision_ts\",\n        \"decision_note\",\n        \"status\"\n      ];\n      var SPEC_COLUMNS = [\n        \"spec_id\",\n        \"contract_ref\",\n        \"commodity\",\n        \"param\",\n        \"label\",\n        \"unit\",\n        \"check\",\n        \"direction\",\n        \"threshold\",\n        \"values\",\n        \"tolerance_pct\",\n        \"required\",\n        \"notes\"\n      ];\n      var COUNTERPARTY_COLUMNS = [\n        \"contract_ref\",\n        \"shipper\",\n        \"shipper_email\",\n        \"customer\",\n        \"customer_email\",\n        \"notes\"\n      ];\n      var DECISION_LOG_COLUMNS = [\n        \"ts\",\n        \"sample_id\",\n        \"actor\",\n        \"action\",\n        \"from_status\",\n        \"to_status\",\n        \"note\"\n      ];\n      var TABLES = [\"register\", \"spec\", \"log\", \"counterparty\"];\n      var RECEIPT_CONDITIONS = [\"intact\", \"damaged\", \"partial\"];\n      var INPUT_TYPES = [\"voice\", \"photo\", \"text\"];\n      function emptyRow(columns) {\n        const row = {};\n        for (const column of columns) row[column] = \"\";\n        return row;\n      }\n      function pick(columns, values) {\n        const row = emptyRow(columns);\n        for (const column of columns) {\n          const value = values ? values[column] : void 0;\n          if (value === void 0 || value === null) continue;\n          row[column] = typeof value === \"string\" ? value : JSON.stringify(value);\n        }\n        return row;\n      }\n      function dispatchRow(values) {\n        return Object.assign(pick(REGISTER_COLUMNS, values), { status: \"dispatched\" });\n      }\n      function logEntry(values) {\n        return pick(DECISION_LOG_COLUMNS, values);\n      }\n      module.exports = {\n        TABLES,\n        REGISTER_COLUMNS,\n        SPEC_COLUMNS,\n        COUNTERPARTY_COLUMNS,\n        DECISION_LOG_COLUMNS,\n        RECEIPT_CONDITIONS,\n        INPUT_TYPES,\n        emptyRow,\n        pick,\n        dispatchRow,\n        logEntry\n      };\n    }\n  });\n\n  // src/trail/messages.js\n  var require_messages = __commonJS({\n    \"src/trail/messages.js\"(exports, module) {\n      \"use strict\";\n      function arrivalNotice(sample) {\n        const lot = sample.lot_ref ? `Lot ${sample.lot_ref}` : \"no lot reference\";\n        const contract = sample.contract_ref ? `contract ${sample.contract_ref}` : \"no contract reference\";\n        const lines = [`Sample ${sample.sample_id} received - ${lot}, ${contract}.`];\n        if (sample.receipt_condition && sample.receipt_condition !== \"intact\") {\n          lines.push(\"\", `Arrived ${sample.receipt_condition}. Photograph it before you open anything else.`);\n        }\n        lines.push(\"\", \"Reply to this message with a voice note or a photo of the grading sheet.\");\n        return lines.join(\"\\n\");\n      }\n      function dispatchNotice(sample) {\n        return [\n          `Sample ${sample.sample_id} dispatched.`,\n          `${sample.commodity || \"Commodity not stated\"}, lot ${sample.lot_ref}, contract ${sample.contract_ref}.`,\n          sample.carrier_ref ? `Carrier ${sample.carrier_ref}.` : \"\",\n          \"The QR is on the dispatch page and in the email copy, not here.\"\n        ].filter(Boolean).join(\"\\n\");\n      }\n      function decisionStamp(sample) {\n        const wording = {\n          approved: \"Approved\",\n          rejected: \"Rejected\",\n          resample_requested: \"Re-sample requested\"\n        }[sample.decision] || sample.decision;\n        return [\n          `${sample.sample_id} - ${wording} by ${sample.decision_by}.`,\n          sample.decision_note ? `Reason: ${sample.decision_note}` : \"\"\n        ].filter(Boolean).join(\"\\n\");\n      }\n      var refusal = {\n        notBound: () => [\n          \"I cannot tell which sample that is about.\",\n          \"\",\n          \"Reply to the arrival notification for the sample you are assessing. The message with the sample id in it.\"\n        ].join(\"\\n\"),\n        unknownSample: (sampleId) => `No sample ${sampleId} in the register. Check the id on the label.`,\n        wrongStatus: (sampleId, reason) => `${sampleId}: ${reason}.`,\n        alreadyEvaluated: (sampleId, verdict) => `${sampleId} was already assessed, verdict ${verdict}. Ask for a re-sample if it needs looking at again.`,\n        alreadyDecided: (sampleId, decision, by) => `${sampleId} was already ${decision} by ${by || \"someone\"}.`,\n        noSpec: (contractRef) => [\n          `No spec rows for contract ${contractRef}.`,\n          \"\",\n          \"The sample was not registered. Add the parameters to the Spec Library and dispatch it again.\",\n          \"Nothing is judged against a default spec.\"\n        ].join(\"\\n\"),\n        unreadable: (sampleId) => [\n          `${sampleId}: I could not read that.`,\n          \"\",\n          \"Send the readings as a photo of the grading sheet, or type them.\"\n        ].join(\"\\n\"),\n        voiceDisabled: (sampleId) => [\n          `${sampleId}: voice notes are not turned on for this instance.`,\n          \"\",\n          \"Send a photo of the grading sheet, or type the readings.\"\n        ].join(\"\\n\")\n      };\n      function nudgeMessage(entries) {\n        return [\n          `${entries.length} sample${entries.length === 1 ? \"\" : \"s\"} past the assessment deadline:`,\n          \"\",\n          ...entries.map((e) => `${e.sample_id}${e.lot_ref ? ` - lot ${e.lot_ref}` : \"\"}, due ${e.sla_due_ts.slice(0, 10)}, ${e.hours_over} hours over`)\n        ].join(\"\\n\");\n      }\n      function escalationMessage(entries) {\n        return [\n          `${entries.length} sample${entries.length === 1 ? \"\" : \"s\"} more than a day past the deadline and still not assessed:`,\n          \"\",\n          ...entries.map((e) => `${e.sample_id}${e.lot_ref ? ` - lot ${e.lot_ref}` : \"\"}, ${e.days_over} day${e.days_over === 1 ? \"\" : \"s\"} over`),\n          \"\",\n          \"These were nudged yesterday and nothing moved.\"\n        ].join(\"\\n\");\n      }\n      function digestMessage(digest) {\n        const c = digest.counts;\n        const lines = [\n          `Sample Trail, last ${digest.window_days} days`,\n          \"\",\n          `Dispatched ${c.dispatched}, received ${c.received}, assessed ${c.evaluated}`,\n          `Decided ${digest.decided}: ${c.approved} approved, ${c.rejected} rejected, ${c.resample_requested} re-sampled`\n        ];\n        if (digest.approval_rate_pct !== null) lines.push(`Approval rate ${digest.approval_rate_pct}%`);\n        if (digest.mean_hours_receipt_to_decision !== null) {\n          lines.push(`Mean ${digest.mean_hours_receipt_to_decision} hours from arrival to decision`);\n        }\n        if (c.needs_review > 0) lines.push(`${c.needs_review} waiting on a person`);\n        lines.push(\"\");\n        lines.push(digest.stuck.length === 0 ? \"Nothing past its deadline.\" : `Past deadline: ${digest.stuck.map((s) => s.sample_id).join(\", \")}`);\n        return lines.join(\"\\n\");\n      }\n      function decisionNotice(sample, reasons) {\n        const outcome = {\n          approved: \"approved\",\n          rejected: \"rejected\",\n          resample_requested: \"held, and a further sample is requested\"\n        }[sample.decision] || String(sample.decision || \"decided\");\n        const lines = [\n          `Sample ${sample.sample_id}, lot ${sample.lot_ref || \"not stated\"}, against contract ${sample.contract_ref || \"not stated\"}.`,\n          \"\",\n          `The sample has been ${outcome}.`\n        ];\n        const failures = (reasons || []).filter((r) => r.result === \"fail\" || r.result === \"borderline\");\n        if (failures.length > 0) {\n          lines.push(\"\", \"Against the contract specification:\", \"\");\n          for (const reason of failures) {\n            const label = reason.label || reason.param;\n            if (reason.check === \"absent\") {\n              lines.push(`- ${label}: ${reason.value} reported, which the contract excludes.`);\n            } else if (reason.result === \"borderline\") {\n              lines.push(`- ${label} ${reason.value}${reason.unit || \"\"} against a limit of ${reason.direction} ${reason.threshold}${reason.unit || \"\"}, within the agreed tolerance.`);\n            } else {\n              lines.push(`- ${label} ${reason.value}${reason.unit || \"\"} against a limit of ${reason.direction} ${reason.threshold}${reason.unit || \"\"}.`);\n            }\n          }\n        } else if (sample.verdict === \"pass\") {\n          lines.push(\"\", \"Every parameter measured was within the contract specification.\");\n        }\n        lines.push(\"\", `Assessed ${String(sample.eval_ts || \"\").slice(0, 10)}, decided by ${sample.decision_by || \"the buyer\"}.`);\n        return lines.join(String.fromCharCode(10));\n      }\n      function decisionSubject(sample) {\n        const outcome = { approved: \"approved\", rejected: \"rejected\", resample_requested: \"re-sample requested\" }[sample.decision] || String(sample.decision || \"decided\");\n        return `Sample ${sample.sample_id} ${outcome} - lot ${sample.lot_ref || \"\"}, contract ${sample.contract_ref || \"\"}`.trim();\n      }\n      module.exports = {\n        decisionNotice,\n        decisionSubject,\n        arrivalNotice,\n        dispatchNotice,\n        decisionStamp,\n        refusal,\n        nudgeMessage,\n        escalationMessage,\n        digestMessage\n      };\n    }\n  });\n\n  // src/verdict/coerce.js\n  var require_coerce = __commonJS({\n    \"src/verdict/coerce.js\"(exports, module) {\n      \"use strict\";\n      function toNumber(value) {\n        if (value === null || value === void 0 || value === \"\") return null;\n        if (typeof value === \"number\") return Number.isFinite(value) ? value : null;\n        if (typeof value !== \"string\") return null;\n        const cleaned = value.trim().replace(/^([+-]?\\d+),(\\d{1,2})$/, \"$1.$2\");\n        if (!/^[+-]?\\d+(\\.\\d+)?$/.test(cleaned)) return null;\n        const n = Number(cleaned);\n        return Number.isFinite(n) ? n : null;\n      }\n      function toConfidence(value) {\n        const n = toNumber(value);\n        if (n === null || n < 0) return 0;\n        return n > 1 ? 1 : n;\n      }\n      function toText(value) {\n        if (value === null || value === void 0) return \"\";\n        return String(value).trim();\n      }\n      function toList(value) {\n        if (value === null || value === void 0) return [];\n        const parts = Array.isArray(value) ? value : String(value).split(\",\");\n        return parts.map((p) => String(p).trim().toLowerCase()).filter(Boolean);\n      }\n      function toBool(value, fallback) {\n        const text = toText(value).toLowerCase();\n        if (text === \"\") return fallback === void 0 ? false : fallback;\n        return text === \"yes\" || text === \"true\" || text === \"1\" || text === \"y\";\n      }\n      module.exports = { toNumber, toConfidence, toText, toList, toBool };\n    }\n  });\n\n  // src/verdict/spec.js\n  var require_spec = __commonJS({\n    \"src/verdict/spec.js\"(exports, module) {\n      \"use strict\";\n      var { toNumber, toConfidence, toText, toList, toBool } = require_coerce();\n      var CHECKS = [\"numeric\", \"absent\"];\n      var DIRECTIONS = [\"min\", \"max\"];\n      function normaliseParam(raw) {\n        const row = raw && typeof raw === \"object\" ? raw : {};\n        const param = toText(row.param).toLowerCase();\n        const check = (toText(row.check) || \"numeric\").toLowerCase();\n        const out = {\n          param,\n          label: toText(row.label) || param,\n          unit: toText(row.unit),\n          check,\n          direction: null,\n          threshold: null,\n          values: toList(row.values),\n          tolerance_pct: toNumber(row.tolerance_pct),\n          required: toBool(row.required, true),\n          error: null\n        };\n        if (!param) {\n          out.error = \"the row names no parameter\";\n          return out;\n        }\n        if (!CHECKS.includes(check)) {\n          out.error = `unknown check \"${check}\", expected one of ${CHECKS.join(\", \")}`;\n          return out;\n        }\n        if (check === \"numeric\") {\n          const direction = toText(row.direction).toLowerCase();\n          const threshold = toNumber(row.threshold);\n          if (!DIRECTIONS.includes(direction)) {\n            out.error = `direction must be min or max, not \"${toText(row.direction)}\"`;\n            return out;\n          }\n          if (threshold === null) {\n            out.error = `threshold \"${toText(row.threshold)}\" is not a number`;\n            return out;\n          }\n          out.direction = direction;\n          out.threshold = threshold;\n          return out;\n        }\n        if (out.values.length === 0) {\n          out.error = \"an absent check names nothing to exclude\";\n          return out;\n        }\n        return out;\n      }\n      function normaliseSpec(rows) {\n        const list = Array.isArray(rows) ? rows : rows ? [rows] : [];\n        const params = list.map(normaliseParam);\n        const head = list[0] && typeof list[0] === \"object\" ? list[0] : {};\n        return {\n          spec_id: toText(head.spec_id),\n          contract_ref: toText(head.contract_ref),\n          commodity: toText(head.commodity),\n          tolerance_pct: toNumber(head.tolerance_pct),\n          params,\n          errors: params.filter((p) => p.error).map((p) => ({ param: p.param, detail: p.error }))\n        };\n      }\n      function normaliseExtraction(raw) {\n        const ex = raw && typeof raw === \"object\" ? raw : {};\n        const values = {};\n        const confidence = {};\n        const rawValues = ex.values && typeof ex.values === \"object\" ? ex.values : {};\n        for (const key of Object.keys(rawValues)) values[key.toLowerCase()] = toNumber(rawValues[key]);\n        const rawConfidence = ex.confidence && typeof ex.confidence === \"object\" ? ex.confidence : {};\n        for (const key of Object.keys(rawConfidence)) confidence[key.toLowerCase()] = toConfidence(rawConfidence[key]);\n        return {\n          values,\n          defects: toList(ex.defects),\n          notes: toText(ex.notes),\n          confidence\n        };\n      }\n      module.exports = { normaliseSpec, normaliseParam, normaliseExtraction, CHECKS, DIRECTIONS };\n    }\n  });\n\n  // src/trail/index.js\n  var require_index = __commonJS({\n    \"src/trail/index.js\"(exports, module) {\n      var ids = require_ids();\n      var extraction = require_extraction();\n      var sla = require_sla();\n      var digest = require_digest();\n      var rows = require_rows();\n      var messages = require_messages();\n      var spec = require_spec();\n      var TRAIL_VERSION = \"0.1.0\";\n      module.exports = {\n        TRAIL_VERSION,\n        mintSampleId: ids.mintSampleId,\n        isSampleId: ids.isSampleId,\n        findSampleId: ids.findSampleId,\n        SAMPLE_ID_RE: ids.SAMPLE_ID_RE,\n        normaliseSpec: spec.normaliseSpec,\n        buildExtractionPrompt: extraction.buildExtractionPrompt,\n        parseExtraction: extraction.parseExtraction,\n        emptyExtraction: extraction.emptyExtraction,\n        computeSlaDue: sla.computeSlaDue,\n        hoursBetween: sla.hoursBetween,\n        overdueScan: sla.overdueScan,\n        summarise: digest.summarise,\n        arrivalNotice: messages.arrivalNotice,\n        dispatchNotice: messages.dispatchNotice,\n        decisionStamp: messages.decisionStamp,\n        refusal: messages.refusal,\n        nudgeMessage: messages.nudgeMessage,\n        escalationMessage: messages.escalationMessage,\n        digestMessage: messages.digestMessage,\n        decisionNotice: messages.decisionNotice,\n        decisionSubject: messages.decisionSubject,\n        TABLES: rows.TABLES,\n        REGISTER_COLUMNS: rows.REGISTER_COLUMNS,\n        SPEC_COLUMNS: rows.SPEC_COLUMNS,\n        DECISION_LOG_COLUMNS: rows.DECISION_LOG_COLUMNS,\n        RECEIPT_CONDITIONS: rows.RECEIPT_CONDITIONS,\n        INPUT_TYPES: rows.INPUT_TYPES,\n        dispatchRow: rows.dispatchRow,\n        logEntry: rows.logEntry\n      };\n    }\n  });\n  return require_index();\n})();\n\n\n// Adapter: dispatch-input  (Flow A, Dispatch)\n//\n// The form hands back its answers keyed by the labels people read. Everything downstream works in\n// column names. This is the one place the two vocabularies meet, so a relabelled field is a change\n// here rather than a hunt through the canvas for the node that broke.\n//\n// Node settings: JavaScript, Run Once for All Items.\n\n// Read from the trigger by name, not from the wire. The Settings node sits between the form and\n// this one, and it replaces the item, so $input here is a bag of settings rather than answers.\nconst submission = $('Dispatch a sample').first();\nconst form = submission.json;\nconst settings = $('Settings').first().json;\n\nconst pick = (...labels) => {\n  for (const label of labels) {\n    const value = form[label];\n    if (value !== undefined && value !== null && String(value).trim() !== '') return String(value).trim();\n  }\n  return '';\n};\n\nreturn [\n  {\n    json: {\n      lot_ref: pick('Lot reference', 'lot_ref'),\n      contract_ref: pick('Contract reference', 'contract_ref'),\n      commodity: pick('Commodity', 'commodity'),\n      origin: pick('Origin', 'origin'),\n      shipper: pick('Shipper', 'shipper'),\n      carrier_ref: pick('Carrier reference', 'carrier_ref'),\n      notify_email: pick('Email a copy to', 'notify_email'),\n      // A photograph arrives as binary, not as a link. Recording the file name keeps the row\n      // honest about what exists rather than writing a URL that leads nowhere. A sticky note\n      // says where to add an upload node when you want a real link.\n      photo_name: ((submission.binary || {}).Sample_photo || {}).fileName || '',\n      n8n_base_url: settings.n8n_base_url,\n    },\n  },\n];\n"
+      },
+      "name": "Normalise dispatch form",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "notes": "Form labels in, column names out. The only place the two vocabularies meet.",
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// trail 0.1.0  build b65fb3678a81\n// Source: src/trail/ and src/adapters/trail/. Rebuild with npm run bundle.\n\"use strict\";\nvar ST_TRAIL = (() => {\n  var __getOwnPropNames = Object.getOwnPropertyNames;\n  var __commonJS = (cb, mod) => function __require() {\n    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;\n  };\n\n  // src/trail/ids.js\n  var require_ids = __commonJS({\n    \"src/trail/ids.js\"(exports, module) {\n      \"use strict\";\n      var ALPHABET = \"ABCDEFGHJKLMNPQRSTUVWXYZ23456789\";\n      var ID_LENGTH = 4;\n      var SAMPLE_ID_RE = /\\bST-\\d{8}-[A-Z0-9]{4}\\b/;\n      function datePart(iso) {\n        const text = String(iso || \"\");\n        const match = /^(\\d{4})-(\\d{2})-(\\d{2})/.exec(text);\n        if (!match) throw new Error(`\"${iso}\" is not an ISO timestamp`);\n        return `${match[1]}${match[2]}${match[3]}`;\n      }\n      function mintSampleId(input) {\n        const bytes = input && input.entropy || [];\n        if (bytes.length < ID_LENGTH) throw new Error(`minting an id needs ${ID_LENGTH} bytes of entropy`);\n        let suffix = \"\";\n        for (let i = 0; i < ID_LENGTH; i += 1) {\n          suffix += ALPHABET[Math.abs(Math.trunc(bytes[i])) % ALPHABET.length];\n        }\n        return `ST-${datePart(input && input.now)}-${suffix}`;\n      }\n      function isSampleId(value) {\n        const text = String(value || \"\").trim();\n        return SAMPLE_ID_RE.test(text) && text.length === 16;\n      }\n      function findSampleId(text) {\n        const match = SAMPLE_ID_RE.exec(String(text || \"\").toUpperCase());\n        return match ? match[0] : null;\n      }\n      module.exports = { mintSampleId, isSampleId, findSampleId, datePart, ALPHABET, ID_LENGTH, SAMPLE_ID_RE };\n    }\n  });\n\n  // src/trail/extraction.js\n  var require_extraction = __commonJS({\n    \"src/trail/extraction.js\"(exports, module) {\n      \"use strict\";\n      var FENCE = /^\\s*```(?:json)?\\s*([\\s\\S]*?)\\s*```\\s*$/;\n      function emptyExtraction(params) {\n        const values = {};\n        const confidence = {};\n        for (const p of (params || []).filter((param) => param.check === \"numeric\")) {\n          values[p.param] = null;\n          confidence[p.param] = 0;\n        }\n        return { values, defects: [], notes: \"\", confidence };\n      }\n      function buildExtractionPrompt(spec) {\n        const params = (spec && spec.params || []).filter((p) => p.check === \"numeric\");\n        const excluded = (spec && spec.params || []).filter((p) => p.check === \"absent\").flatMap((p) => p.values);\n        const lines = [\n          \"You read a quality evaluation of a physical commodity sample and return the values stated in it.\",\n          \"\",\n          \"Return JSON only. No prose, no explanation, no code fences.\",\n          \"\",\n          \"Fields to read:\"\n        ];\n        for (const p of params) {\n          const unit = p.unit ? ` in ${p.unit}` : \"\";\n          lines.push(`- ${p.param}: ${p.label}${unit}, as a number`);\n        }\n        lines.push(\n          \"- defects: a list of conditions the evaluation reports, in the words used\",\n          \"- notes: anything stated that does not fit a field above\",\n          \"\",\n          \"Rules:\",\n          \"- Return null for any field the evaluation does not state. Never infer a value.\",\n          \"- Never estimate, average or convert between units. Report what was said.\",\n          \"- Give a confidence between 0 and 1 for every field, reflecting how clearly it was stated.\",\n          \"- A field you could not hear or read clearly gets a low confidence, not a guess.\"\n        );\n        if (excluded.length > 0) {\n          lines.push(`- Conditions the contract excludes by name, if you hear them: ${excluded.join(\", \")}.`);\n        }\n        lines.push(\n          \"\",\n          \"Shape:\",\n          JSON.stringify(\n            {\n              values: params.reduce((acc, p) => Object.assign(acc, { [p.param]: null }), {}),\n              defects: [],\n              notes: \"\",\n              confidence: params.reduce((acc, p) => Object.assign(acc, { [p.param]: 0 }), {})\n            },\n            null,\n            2\n          )\n        );\n        return lines.join(\"\\n\");\n      }\n      function parseExtraction(raw) {\n        const text = typeof raw === \"string\" ? raw : JSON.stringify(raw === void 0 ? null : raw);\n        const stripped = FENCE.test(text) ? FENCE.exec(text)[1] : text;\n        let parsed;\n        try {\n          parsed = JSON.parse(stripped);\n        } catch (err) {\n          return { ok: false, extracted: null, reason: \"the model did not return JSON\", raw: text };\n        }\n        if (!parsed || typeof parsed !== \"object\" || Array.isArray(parsed)) {\n          return { ok: false, extracted: null, reason: \"the model returned JSON that is not an object\", raw: text };\n        }\n        if (!parsed.values || typeof parsed.values !== \"object\" || Array.isArray(parsed.values)) {\n          return { ok: false, extracted: null, reason: \"the model returned no values object\", raw: text };\n        }\n        return { ok: true, extracted: parsed, reason: null, raw: text };\n      }\n      module.exports = { buildExtractionPrompt, parseExtraction, emptyExtraction, FENCE };\n    }\n  });\n\n  // src/trail/sla.js\n  var require_sla = __commonJS({\n    \"src/trail/sla.js\"(exports, module) {\n      \"use strict\";\n      var HOUR_MS = 3600 * 1e3;\n      var DAY_MS = 24 * HOUR_MS;\n      function toMillis(iso) {\n        const ms = Date.parse(String(iso || \"\"));\n        return Number.isFinite(ms) ? ms : null;\n      }\n      function computeSlaDue(receiptIso, slaDays) {\n        const start = toMillis(receiptIso);\n        if (start === null) throw new Error(`\"${receiptIso}\" is not an ISO timestamp`);\n        const days = Number(slaDays);\n        if (!Number.isFinite(days) || days < 0) throw new Error(`\"${slaDays}\" is not a number of days`);\n        return new Date(start + days * DAY_MS).toISOString();\n      }\n      function hoursBetween(fromIso, toIso) {\n        const a = toMillis(fromIso);\n        const b = toMillis(toIso);\n        if (a === null || b === null) return null;\n        return Math.round((b - a) / HOUR_MS * 10) / 10;\n      }\n      function overdueScan(rows, nowIso) {\n        const now = toMillis(nowIso);\n        if (now === null) throw new Error(`\"${nowIso}\" is not an ISO timestamp`);\n        const nudge = [];\n        const escalate = [];\n        for (const row of rows || []) {\n          const status = String(row.status || \"\").trim().toLowerCase();\n          if (status !== \"received\" && status !== \"needs_review\") continue;\n          const due = toMillis(row.sla_due_ts);\n          if (due === null || now <= due) continue;\n          const daysOver = Math.floor((now - due) / DAY_MS);\n          const entry = {\n            sample_id: row.sample_id,\n            lot_ref: row.lot_ref || \"\",\n            status,\n            sla_due_ts: row.sla_due_ts,\n            hours_over: Math.round((now - due) / HOUR_MS * 10) / 10,\n            days_over: daysOver\n          };\n          if (daysOver < 1) nudge.push(entry);\n          else escalate.push(entry);\n        }\n        return { nudge, escalate, total: nudge.length + escalate.length };\n      }\n      module.exports = { computeSlaDue, hoursBetween, overdueScan, toMillis, HOUR_MS, DAY_MS };\n    }\n  });\n\n  // src/trail/digest.js\n  var require_digest = __commonJS({\n    \"src/trail/digest.js\"(exports, module) {\n      \"use strict\";\n      var { hoursBetween, toMillis, DAY_MS } = require_sla();\n      var COUNTED = [\"dispatched\", \"in_transit\", \"received\", \"evaluated\", \"needs_review\", \"approved\", \"rejected\", \"resample_requested\"];\n      function mean(values) {\n        if (values.length === 0) return null;\n        const total = values.reduce((a, b) => a + b, 0);\n        return Math.round(total / values.length * 10) / 10;\n      }\n      function summarise(rows, nowIso, windowDays) {\n        const now = toMillis(nowIso);\n        if (now === null) throw new Error(`\"${nowIso}\" is not an ISO timestamp`);\n        const days = Number.isFinite(Number(windowDays)) ? Number(windowDays) : 7;\n        const cutoff = days > 0 ? now - days * DAY_MS : null;\n        const counts = {};\n        for (const status of COUNTED) counts[status] = 0;\n        const decisionHours = [];\n        const stuck = [];\n        for (const row of rows || []) {\n          const status = String(row.status || \"\").trim().toLowerCase();\n          const dispatched = toMillis(row.dispatch_ts);\n          const inWindow = cutoff === null || dispatched !== null && dispatched >= cutoff;\n          if (inWindow && Object.prototype.hasOwnProperty.call(counts, status)) counts[status] += 1;\n          if (inWindow && row.decision_ts && row.receipt_ts) {\n            const hours = hoursBetween(row.receipt_ts, row.decision_ts);\n            if (hours !== null) decisionHours.push(hours);\n          }\n          const due = toMillis(row.sla_due_ts);\n          if ((status === \"received\" || status === \"needs_review\") && due !== null && now > due) {\n            stuck.push({ sample_id: row.sample_id, lot_ref: row.lot_ref || \"\", status, sla_due_ts: row.sla_due_ts });\n          }\n        }\n        const decided = counts.approved + counts.rejected + counts.resample_requested;\n        return {\n          window_days: days,\n          counts,\n          decided,\n          approval_rate_pct: decided > 0 ? Math.round(counts.approved / decided * 1e3) / 10 : null,\n          mean_hours_receipt_to_decision: mean(decisionHours),\n          stuck\n        };\n      }\n      module.exports = { summarise, mean, COUNTED };\n    }\n  });\n\n  // src/trail/rows.js\n  var require_rows = __commonJS({\n    \"src/trail/rows.js\"(exports, module) {\n      \"use strict\";\n      var REGISTER_COLUMNS = [\n        \"sample_id\",\n        \"lot_ref\",\n        \"contract_ref\",\n        \"commodity\",\n        \"origin\",\n        \"shipper\",\n        \"spec_id\",\n        \"dispatch_ts\",\n        \"dispatch_photo\",\n        \"carrier_ref\",\n        \"receipt_ts\",\n        \"receipt_condition\",\n        \"receipt_photo\",\n        \"sla_due_ts\",\n        \"eval_ts\",\n        \"evaluator\",\n        \"input_type\",\n        \"input_url\",\n        \"transcript\",\n        \"extracted_json\",\n        \"verdict\",\n        \"verdict_reasons\",\n        \"decision\",\n        \"decision_by\",\n        \"decision_ts\",\n        \"decision_note\",\n        \"status\"\n      ];\n      var SPEC_COLUMNS = [\n        \"spec_id\",\n        \"contract_ref\",\n        \"commodity\",\n        \"param\",\n        \"label\",\n        \"unit\",\n        \"check\",\n        \"direction\",\n        \"threshold\",\n        \"values\",\n        \"tolerance_pct\",\n        \"required\",\n        \"notes\"\n      ];\n      var COUNTERPARTY_COLUMNS = [\n        \"contract_ref\",\n        \"shipper\",\n        \"shipper_email\",\n        \"customer\",\n        \"customer_email\",\n        \"notes\"\n      ];\n      var DECISION_LOG_COLUMNS = [\n        \"ts\",\n        \"sample_id\",\n        \"actor\",\n        \"action\",\n        \"from_status\",\n        \"to_status\",\n        \"note\"\n      ];\n      var TABLES = [\"register\", \"spec\", \"log\", \"counterparty\"];\n      var RECEIPT_CONDITIONS = [\"intact\", \"damaged\", \"partial\"];\n      var INPUT_TYPES = [\"voice\", \"photo\", \"text\"];\n      function emptyRow(columns) {\n        const row = {};\n        for (const column of columns) row[column] = \"\";\n        return row;\n      }\n      function pick(columns, values) {\n        const row = emptyRow(columns);\n        for (const column of columns) {\n          const value = values ? values[column] : void 0;\n          if (value === void 0 || value === null) continue;\n          row[column] = typeof value === \"string\" ? value : JSON.stringify(value);\n        }\n        return row;\n      }\n      function dispatchRow(values) {\n        return Object.assign(pick(REGISTER_COLUMNS, values), { status: \"dispatched\" });\n      }\n      function logEntry(values) {\n        return pick(DECISION_LOG_COLUMNS, values);\n      }\n      module.exports = {\n        TABLES,\n        REGISTER_COLUMNS,\n        SPEC_COLUMNS,\n        COUNTERPARTY_COLUMNS,\n        DECISION_LOG_COLUMNS,\n        RECEIPT_CONDITIONS,\n        INPUT_TYPES,\n        emptyRow,\n        pick,\n        dispatchRow,\n        logEntry\n      };\n    }\n  });\n\n  // src/trail/messages.js\n  var require_messages = __commonJS({\n    \"src/trail/messages.js\"(exports, module) {\n      \"use strict\";\n      function arrivalNotice(sample) {\n        const lot = sample.lot_ref ? `Lot ${sample.lot_ref}` : \"no lot reference\";\n        const contract = sample.contract_ref ? `contract ${sample.contract_ref}` : \"no contract reference\";\n        const lines = [`Sample ${sample.sample_id} received - ${lot}, ${contract}.`];\n        if (sample.receipt_condition && sample.receipt_condition !== \"intact\") {\n          lines.push(\"\", `Arrived ${sample.receipt_condition}. Photograph it before you open anything else.`);\n        }\n        lines.push(\"\", \"Reply to this message with a voice note or a photo of the grading sheet.\");\n        return lines.join(\"\\n\");\n      }\n      function dispatchNotice(sample) {\n        return [\n          `Sample ${sample.sample_id} dispatched.`,\n          `${sample.commodity || \"Commodity not stated\"}, lot ${sample.lot_ref}, contract ${sample.contract_ref}.`,\n          sample.carrier_ref ? `Carrier ${sample.carrier_ref}.` : \"\",\n          \"The QR is on the dispatch page and in the email copy, not here.\"\n        ].filter(Boolean).join(\"\\n\");\n      }\n      function decisionStamp(sample) {\n        const wording = {\n          approved: \"Approved\",\n          rejected: \"Rejected\",\n          resample_requested: \"Re-sample requested\"\n        }[sample.decision] || sample.decision;\n        return [\n          `${sample.sample_id} - ${wording} by ${sample.decision_by}.`,\n          sample.decision_note ? `Reason: ${sample.decision_note}` : \"\"\n        ].filter(Boolean).join(\"\\n\");\n      }\n      var refusal = {\n        notBound: () => [\n          \"I cannot tell which sample that is about.\",\n          \"\",\n          \"Reply to the arrival notification for the sample you are assessing. The message with the sample id in it.\"\n        ].join(\"\\n\"),\n        unknownSample: (sampleId) => `No sample ${sampleId} in the register. Check the id on the label.`,\n        wrongStatus: (sampleId, reason) => `${sampleId}: ${reason}.`,\n        alreadyEvaluated: (sampleId, verdict) => `${sampleId} was already assessed, verdict ${verdict}. Ask for a re-sample if it needs looking at again.`,\n        alreadyDecided: (sampleId, decision, by) => `${sampleId} was already ${decision} by ${by || \"someone\"}.`,\n        noSpec: (contractRef) => [\n          `No spec rows for contract ${contractRef}.`,\n          \"\",\n          \"The sample was not registered. Add the parameters to the Spec Library and dispatch it again.\",\n          \"Nothing is judged against a default spec.\"\n        ].join(\"\\n\"),\n        unreadable: (sampleId) => [\n          `${sampleId}: I could not read that.`,\n          \"\",\n          \"Send the readings as a photo of the grading sheet, or type them.\"\n        ].join(\"\\n\"),\n        voiceDisabled: (sampleId) => [\n          `${sampleId}: voice notes are not turned on for this instance.`,\n          \"\",\n          \"Send a photo of the grading sheet, or type the readings.\"\n        ].join(\"\\n\")\n      };\n      function nudgeMessage(entries) {\n        return [\n          `${entries.length} sample${entries.length === 1 ? \"\" : \"s\"} past the assessment deadline:`,\n          \"\",\n          ...entries.map((e) => `${e.sample_id}${e.lot_ref ? ` - lot ${e.lot_ref}` : \"\"}, due ${e.sla_due_ts.slice(0, 10)}, ${e.hours_over} hours over`)\n        ].join(\"\\n\");\n      }\n      function escalationMessage(entries) {\n        return [\n          `${entries.length} sample${entries.length === 1 ? \"\" : \"s\"} more than a day past the deadline and still not assessed:`,\n          \"\",\n          ...entries.map((e) => `${e.sample_id}${e.lot_ref ? ` - lot ${e.lot_ref}` : \"\"}, ${e.days_over} day${e.days_over === 1 ? \"\" : \"s\"} over`),\n          \"\",\n          \"These were nudged yesterday and nothing moved.\"\n        ].join(\"\\n\");\n      }\n      function digestMessage(digest) {\n        const c = digest.counts;\n        const lines = [\n          `Sample Trail, last ${digest.window_days} days`,\n          \"\",\n          `Dispatched ${c.dispatched}, received ${c.received}, assessed ${c.evaluated}`,\n          `Decided ${digest.decided}: ${c.approved} approved, ${c.rejected} rejected, ${c.resample_requested} re-sampled`\n        ];\n        if (digest.approval_rate_pct !== null) lines.push(`Approval rate ${digest.approval_rate_pct}%`);\n        if (digest.mean_hours_receipt_to_decision !== null) {\n          lines.push(`Mean ${digest.mean_hours_receipt_to_decision} hours from arrival to decision`);\n        }\n        if (c.needs_review > 0) lines.push(`${c.needs_review} waiting on a person`);\n        lines.push(\"\");\n        lines.push(digest.stuck.length === 0 ? \"Nothing past its deadline.\" : `Past deadline: ${digest.stuck.map((s) => s.sample_id).join(\", \")}`);\n        return lines.join(\"\\n\");\n      }\n      function decisionNotice(sample, reasons) {\n        const outcome = {\n          approved: \"approved\",\n          rejected: \"rejected\",\n          resample_requested: \"held, and a further sample is requested\"\n        }[sample.decision] || String(sample.decision || \"decided\");\n        const lines = [\n          `Sample ${sample.sample_id}, lot ${sample.lot_ref || \"not stated\"}, against contract ${sample.contract_ref || \"not stated\"}.`,\n          \"\",\n          `The sample has been ${outcome}.`\n        ];\n        const failures = (reasons || []).filter((r) => r.result === \"fail\" || r.result === \"borderline\");\n        if (failures.length > 0) {\n          lines.push(\"\", \"Against the contract specification:\", \"\");\n          for (const reason of failures) {\n            const label = reason.label || reason.param;\n            if (reason.check === \"absent\") {\n              lines.push(`- ${label}: ${reason.value} reported, which the contract excludes.`);\n            } else if (reason.result === \"borderline\") {\n              lines.push(`- ${label} ${reason.value}${reason.unit || \"\"} against a limit of ${reason.direction} ${reason.threshold}${reason.unit || \"\"}, within the agreed tolerance.`);\n            } else {\n              lines.push(`- ${label} ${reason.value}${reason.unit || \"\"} against a limit of ${reason.direction} ${reason.threshold}${reason.unit || \"\"}.`);\n            }\n          }\n        } else if (sample.verdict === \"pass\") {\n          lines.push(\"\", \"Every parameter measured was within the contract specification.\");\n        }\n        lines.push(\"\", `Assessed ${String(sample.eval_ts || \"\").slice(0, 10)}, decided by ${sample.decision_by || \"the buyer\"}.`);\n        return lines.join(String.fromCharCode(10));\n      }\n      function decisionSubject(sample) {\n        const outcome = { approved: \"approved\", rejected: \"rejected\", resample_requested: \"re-sample requested\" }[sample.decision] || String(sample.decision || \"decided\");\n        return `Sample ${sample.sample_id} ${outcome} - lot ${sample.lot_ref || \"\"}, contract ${sample.contract_ref || \"\"}`.trim();\n      }\n      module.exports = {\n        decisionNotice,\n        decisionSubject,\n        arrivalNotice,\n        dispatchNotice,\n        decisionStamp,\n        refusal,\n        nudgeMessage,\n        escalationMessage,\n        digestMessage\n      };\n    }\n  });\n\n  // src/verdict/coerce.js\n  var require_coerce = __commonJS({\n    \"src/verdict/coerce.js\"(exports, module) {\n      \"use strict\";\n      function toNumber(value) {\n        if (value === null || value === void 0 || value === \"\") return null;\n        if (typeof value === \"number\") return Number.isFinite(value) ? value : null;\n        if (typeof value !== \"string\") return null;\n        const cleaned = value.trim().replace(/^([+-]?\\d+),(\\d{1,2})$/, \"$1.$2\");\n        if (!/^[+-]?\\d+(\\.\\d+)?$/.test(cleaned)) return null;\n        const n = Number(cleaned);\n        return Number.isFinite(n) ? n : null;\n      }\n      function toConfidence(value) {\n        const n = toNumber(value);\n        if (n === null || n < 0) return 0;\n        return n > 1 ? 1 : n;\n      }\n      function toText(value) {\n        if (value === null || value === void 0) return \"\";\n        return String(value).trim();\n      }\n      function toList(value) {\n        if (value === null || value === void 0) return [];\n        const parts = Array.isArray(value) ? value : String(value).split(\",\");\n        return parts.map((p) => String(p).trim().toLowerCase()).filter(Boolean);\n      }\n      function toBool(value, fallback) {\n        const text = toText(value).toLowerCase();\n        if (text === \"\") return fallback === void 0 ? false : fallback;\n        return text === \"yes\" || text === \"true\" || text === \"1\" || text === \"y\";\n      }\n      module.exports = { toNumber, toConfidence, toText, toList, toBool };\n    }\n  });\n\n  // src/verdict/spec.js\n  var require_spec = __commonJS({\n    \"src/verdict/spec.js\"(exports, module) {\n      \"use strict\";\n      var { toNumber, toConfidence, toText, toList, toBool } = require_coerce();\n      var CHECKS = [\"numeric\", \"absent\"];\n      var DIRECTIONS = [\"min\", \"max\"];\n      function normaliseParam(raw) {\n        const row = raw && typeof raw === \"object\" ? raw : {};\n        const param = toText(row.param).toLowerCase();\n        const check = (toText(row.check) || \"numeric\").toLowerCase();\n        const out = {\n          param,\n          label: toText(row.label) || param,\n          unit: toText(row.unit),\n          check,\n          direction: null,\n          threshold: null,\n          values: toList(row.values),\n          tolerance_pct: toNumber(row.tolerance_pct),\n          required: toBool(row.required, true),\n          error: null\n        };\n        if (!param) {\n          out.error = \"the row names no parameter\";\n          return out;\n        }\n        if (!CHECKS.includes(check)) {\n          out.error = `unknown check \"${check}\", expected one of ${CHECKS.join(\", \")}`;\n          return out;\n        }\n        if (check === \"numeric\") {\n          const direction = toText(row.direction).toLowerCase();\n          const threshold = toNumber(row.threshold);\n          if (!DIRECTIONS.includes(direction)) {\n            out.error = `direction must be min or max, not \"${toText(row.direction)}\"`;\n            return out;\n          }\n          if (threshold === null) {\n            out.error = `threshold \"${toText(row.threshold)}\" is not a number`;\n            return out;\n          }\n          out.direction = direction;\n          out.threshold = threshold;\n          return out;\n        }\n        if (out.values.length === 0) {\n          out.error = \"an absent check names nothing to exclude\";\n          return out;\n        }\n        return out;\n      }\n      function normaliseSpec(rows) {\n        const list = Array.isArray(rows) ? rows : rows ? [rows] : [];\n        const params = list.map(normaliseParam);\n        const head = list[0] && typeof list[0] === \"object\" ? list[0] : {};\n        return {\n          spec_id: toText(head.spec_id),\n          contract_ref: toText(head.contract_ref),\n          commodity: toText(head.commodity),\n          tolerance_pct: toNumber(head.tolerance_pct),\n          params,\n          errors: params.filter((p) => p.error).map((p) => ({ param: p.param, detail: p.error }))\n        };\n      }\n      function normaliseExtraction(raw) {\n        const ex = raw && typeof raw === \"object\" ? raw : {};\n        const values = {};\n        const confidence = {};\n        const rawValues = ex.values && typeof ex.values === \"object\" ? ex.values : {};\n        for (const key of Object.keys(rawValues)) values[key.toLowerCase()] = toNumber(rawValues[key]);\n        const rawConfidence = ex.confidence && typeof ex.confidence === \"object\" ? ex.confidence : {};\n        for (const key of Object.keys(rawConfidence)) confidence[key.toLowerCase()] = toConfidence(rawConfidence[key]);\n        return {\n          values,\n          defects: toList(ex.defects),\n          notes: toText(ex.notes),\n          confidence\n        };\n      }\n      module.exports = { normaliseSpec, normaliseParam, normaliseExtraction, CHECKS, DIRECTIONS };\n    }\n  });\n\n  // src/trail/index.js\n  var require_index = __commonJS({\n    \"src/trail/index.js\"(exports, module) {\n      var ids = require_ids();\n      var extraction = require_extraction();\n      var sla = require_sla();\n      var digest = require_digest();\n      var rows = require_rows();\n      var messages = require_messages();\n      var spec = require_spec();\n      var TRAIL_VERSION = \"0.1.0\";\n      module.exports = {\n        TRAIL_VERSION,\n        mintSampleId: ids.mintSampleId,\n        isSampleId: ids.isSampleId,\n        findSampleId: ids.findSampleId,\n        SAMPLE_ID_RE: ids.SAMPLE_ID_RE,\n        normaliseSpec: spec.normaliseSpec,\n        buildExtractionPrompt: extraction.buildExtractionPrompt,\n        parseExtraction: extraction.parseExtraction,\n        emptyExtraction: extraction.emptyExtraction,\n        computeSlaDue: sla.computeSlaDue,\n        hoursBetween: sla.hoursBetween,\n        overdueScan: sla.overdueScan,\n        summarise: digest.summarise,\n        arrivalNotice: messages.arrivalNotice,\n        dispatchNotice: messages.dispatchNotice,\n        decisionStamp: messages.decisionStamp,\n        refusal: messages.refusal,\n        nudgeMessage: messages.nudgeMessage,\n        escalationMessage: messages.escalationMessage,\n        digestMessage: messages.digestMessage,\n        decisionNotice: messages.decisionNotice,\n        decisionSubject: messages.decisionSubject,\n        TABLES: rows.TABLES,\n        REGISTER_COLUMNS: rows.REGISTER_COLUMNS,\n        SPEC_COLUMNS: rows.SPEC_COLUMNS,\n        DECISION_LOG_COLUMNS: rows.DECISION_LOG_COLUMNS,\n        RECEIPT_CONDITIONS: rows.RECEIPT_CONDITIONS,\n        INPUT_TYPES: rows.INPUT_TYPES,\n        dispatchRow: rows.dispatchRow,\n        logEntry: rows.logEntry\n      };\n    }\n  });\n  return require_index();\n})();\n\n\n// Adapter: generate-id  (Flow A, Dispatch)\n//\n// The only code that touches n8n globals. Kept out of the bundle and concatenated verbatim, so\n// src/trail/ never sees $input and the purity gate can stay absolute.\n//\n// This is also where the two things a library must never read come from: the clock, and a random\n// source. Both are read here and passed in.\n//\n// Node settings: JavaScript, Run Once for All Items.\n\nconst form = $input.first().json;\n\n// The Code node exposes the web crypto global on current runtimes. The fallback exists because a\n// self hosted instance on an older runner is exactly the environment this template has to survive,\n// and an id that fails to mint loses a sample that is already in a courier bag.\nfunction entropyBytes(count) {\n  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {\n    return Array.from(crypto.getRandomValues(new Uint8Array(count)));\n  }\n  const out = [];\n  for (let i = 0; i < count; i += 1) out.push(Math.floor(Math.random() * 256));\n  return out;\n}\n\nconst now = new Date().toISOString();\nconst sampleId = ST_TRAIL.mintSampleId({ now, entropy: entropyBytes(8) });\n\n// The receipt form prefills from a query parameter whose name matches the field name. This only\n// works on the production URL. On a test URL the field renders empty and looks broken, which is\n// not a bug to chase.\nconst baseUrl = String(form.n8n_base_url || '').replace(/\\/+$/, '');\nconst receiptUrl = `${baseUrl}/form/sample-receipt?sample_id=${encodeURIComponent(sampleId)}`;\n\nreturn [\n  {\n    json: {\n      sample_id: sampleId,\n      dispatch_ts: now,\n      receipt_url: receiptUrl,\n      qr_url: `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(receiptUrl)}`,\n      trail_version: ST_TRAIL.TRAIL_VERSION,\n    },\n  },\n];\n"
+      },
+      "name": "Generate ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "notes": "The clock and the random source are read here and passed in, so the library stays testable.",
+      "position": [
+        660,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_THE_ID_OF_THE_STORE_WORKFLOW",
+          "cachedResultName": "Sample Trail - store"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operation": "lookup",
+            "table": "spec",
+            "column": "contract_ref",
+            "value": "={{ $('Normalise dispatch form').first().json.contract_ref }}",
+            "row": ""
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "name": "Look up spec",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "notes": "Zero rows halts the dispatch. Nothing is ever judged against a default spec.",
+      "alwaysOutputData": true,
+      "position": [
+        880,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.spec_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "name": "Spec exists?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1100,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// trail 0.1.0  build b65fb3678a81\n// Source: src/trail/ and src/adapters/trail/. Rebuild with npm run bundle.\n\"use strict\";\nvar ST_TRAIL = (() => {\n  var __getOwnPropNames = Object.getOwnPropertyNames;\n  var __commonJS = (cb, mod) => function __require() {\n    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;\n  };\n\n  // src/trail/ids.js\n  var require_ids = __commonJS({\n    \"src/trail/ids.js\"(exports, module) {\n      \"use strict\";\n      var ALPHABET = \"ABCDEFGHJKLMNPQRSTUVWXYZ23456789\";\n      var ID_LENGTH = 4;\n      var SAMPLE_ID_RE = /\\bST-\\d{8}-[A-Z0-9]{4}\\b/;\n      function datePart(iso) {\n        const text = String(iso || \"\");\n        const match = /^(\\d{4})-(\\d{2})-(\\d{2})/.exec(text);\n        if (!match) throw new Error(`\"${iso}\" is not an ISO timestamp`);\n        return `${match[1]}${match[2]}${match[3]}`;\n      }\n      function mintSampleId(input) {\n        const bytes = input && input.entropy || [];\n        if (bytes.length < ID_LENGTH) throw new Error(`minting an id needs ${ID_LENGTH} bytes of entropy`);\n        let suffix = \"\";\n        for (let i = 0; i < ID_LENGTH; i += 1) {\n          suffix += ALPHABET[Math.abs(Math.trunc(bytes[i])) % ALPHABET.length];\n        }\n        return `ST-${datePart(input && input.now)}-${suffix}`;\n      }\n      function isSampleId(value) {\n        const text = String(value || \"\").trim();\n        return SAMPLE_ID_RE.test(text) && text.length === 16;\n      }\n      function findSampleId(text) {\n        const match = SAMPLE_ID_RE.exec(String(text || \"\").toUpperCase());\n        return match ? match[0] : null;\n      }\n      module.exports = { mintSampleId, isSampleId, findSampleId, datePart, ALPHABET, ID_LENGTH, SAMPLE_ID_RE };\n    }\n  });\n\n  // src/trail/extraction.js\n  var require_extraction = __commonJS({\n    \"src/trail/extraction.js\"(exports, module) {\n      \"use strict\";\n      var FENCE = /^\\s*```(?:json)?\\s*([\\s\\S]*?)\\s*```\\s*$/;\n      function emptyExtraction(params) {\n        const values = {};\n        const confidence = {};\n        for (const p of (params || []).filter((param) => param.check === \"numeric\")) {\n          values[p.param] = null;\n          confidence[p.param] = 0;\n        }\n        return { values, defects: [], notes: \"\", confidence };\n      }\n      function buildExtractionPrompt(spec) {\n        const params = (spec && spec.params || []).filter((p) => p.check === \"numeric\");\n        const excluded = (spec && spec.params || []).filter((p) => p.check === \"absent\").flatMap((p) => p.values);\n        const lines = [\n          \"You read a quality evaluation of a physical commodity sample and return the values stated in it.\",\n          \"\",\n          \"Return JSON only. No prose, no explanation, no code fences.\",\n          \"\",\n          \"Fields to read:\"\n        ];\n        for (const p of params) {\n          const unit = p.unit ? ` in ${p.unit}` : \"\";\n          lines.push(`- ${p.param}: ${p.label}${unit}, as a number`);\n        }\n        lines.push(\n          \"- defects: a list of conditions the evaluation reports, in the words used\",\n          \"- notes: anything stated that does not fit a field above\",\n          \"\",\n          \"Rules:\",\n          \"- Return null for any field the evaluation does not state. Never infer a value.\",\n          \"- Never estimate, average or convert between units. Report what was said.\",\n          \"- Give a confidence between 0 and 1 for every field, reflecting how clearly it was stated.\",\n          \"- A field you could not hear or read clearly gets a low confidence, not a guess.\"\n        );\n        if (excluded.length > 0) {\n          lines.push(`- Conditions the contract excludes by name, if you hear them: ${excluded.join(\", \")}.`);\n        }\n        lines.push(\n          \"\",\n          \"Shape:\",\n          JSON.stringify(\n            {\n              values: params.reduce((acc, p) => Object.assign(acc, { [p.param]: null }), {}),\n              defects: [],\n              notes: \"\",\n              confidence: params.reduce((acc, p) => Object.assign(acc, { [p.param]: 0 }), {})\n            },\n            null,\n            2\n          )\n        );\n        return lines.join(\"\\n\");\n      }\n      function parseExtraction(raw) {\n        const text = typeof raw === \"string\" ? raw : JSON.stringify(raw === void 0 ? null : raw);\n        const stripped = FENCE.test(text) ? FENCE.exec(text)[1] : text;\n        let parsed;\n        try {\n          parsed = JSON.parse(stripped);\n        } catch (err) {\n          return { ok: false, extracted: null, reason: \"the model did not return JSON\", raw: text };\n        }\n        if (!parsed || typeof parsed !== \"object\" || Array.isArray(parsed)) {\n          return { ok: false, extracted: null, reason: \"the model returned JSON that is not an object\", raw: text };\n        }\n        if (!parsed.values || typeof parsed.values !== \"object\" || Array.isArray(parsed.values)) {\n          return { ok: false, extracted: null, reason: \"the model returned no values object\", raw: text };\n        }\n        return { ok: true, extracted: parsed, reason: null, raw: text };\n      }\n      module.exports = { buildExtractionPrompt, parseExtraction, emptyExtraction, FENCE };\n    }\n  });\n\n  // src/trail/sla.js\n  var require_sla = __commonJS({\n    \"src/trail/sla.js\"(exports, module) {\n      \"use strict\";\n      var HOUR_MS = 3600 * 1e3;\n      var DAY_MS = 24 * HOUR_MS;\n      function toMillis(iso) {\n        const ms = Date.parse(String(iso || \"\"));\n        return Number.isFinite(ms) ? ms : null;\n      }\n      function computeSlaDue(receiptIso, slaDays) {\n        const start = toMillis(receiptIso);\n        if (start === null) throw new Error(`\"${receiptIso}\" is not an ISO timestamp`);\n        const days = Number(slaDays);\n        if (!Number.isFinite(days) || days < 0) throw new Error(`\"${slaDays}\" is not a number of days`);\n        return new Date(start + days * DAY_MS).toISOString();\n      }\n      function hoursBetween(fromIso, toIso) {\n        const a = toMillis(fromIso);\n        const b = toMillis(toIso);\n        if (a === null || b === null) return null;\n        return Math.round((b - a) / HOUR_MS * 10) / 10;\n      }\n      function overdueScan(rows, nowIso) {\n        const now = toMillis(nowIso);\n        if (now === null) throw new Error(`\"${nowIso}\" is not an ISO timestamp`);\n        const nudge = [];\n        const escalate = [];\n        for (const row of rows || []) {\n          const status = String(row.status || \"\").trim().toLowerCase();\n          if (status !== \"received\" && status !== \"needs_review\") continue;\n          const due = toMillis(row.sla_due_ts);\n          if (due === null || now <= due) continue;\n          const daysOver = Math.floor((now - due) / DAY_MS);\n          const entry = {\n            sample_id: row.sample_id,\n            lot_ref: row.lot_ref || \"\",\n            status,\n            sla_due_ts: row.sla_due_ts,\n            hours_over: Math.round((now - due) / HOUR_MS * 10) / 10,\n            days_over: daysOver\n          };\n          if (daysOver < 1) nudge.push(entry);\n          else escalate.push(entry);\n        }\n        return { nudge, escalate, total: nudge.length + escalate.length };\n      }\n      module.exports = { computeSlaDue, hoursBetween, overdueScan, toMillis, HOUR_MS, DAY_MS };\n    }\n  });\n\n  // src/trail/digest.js\n  var require_digest = __commonJS({\n    \"src/trail/digest.js\"(exports, module) {\n      \"use strict\";\n      var { hoursBetween, toMillis, DAY_MS } = require_sla();\n      var COUNTED = [\"dispatched\", \"in_transit\", \"received\", \"evaluated\", \"needs_review\", \"approved\", \"rejected\", \"resample_requested\"];\n      function mean(values) {\n        if (values.length === 0) return null;\n        const total = values.reduce((a, b) => a + b, 0);\n        return Math.round(total / values.length * 10) / 10;\n      }\n      function summarise(rows, nowIso, windowDays) {\n        const now = toMillis(nowIso);\n        if (now === null) throw new Error(`\"${nowIso}\" is not an ISO timestamp`);\n        const days = Number.isFinite(Number(windowDays)) ? Number(windowDays) : 7;\n        const cutoff = days > 0 ? now - days * DAY_MS : null;\n        const counts = {};\n        for (const status of COUNTED) counts[status] = 0;\n        const decisionHours = [];\n        const stuck = [];\n        for (const row of rows || []) {\n          const status = String(row.status || \"\").trim().toLowerCase();\n          const dispatched = toMillis(row.dispatch_ts);\n          const inWindow = cutoff === null || dispatched !== null && dispatched >= cutoff;\n          if (inWindow && Object.prototype.hasOwnProperty.call(counts, status)) counts[status] += 1;\n          if (inWindow && row.decision_ts && row.receipt_ts) {\n            const hours = hoursBetween(row.receipt_ts, row.decision_ts);\n            if (hours !== null) decisionHours.push(hours);\n          }\n          const due = toMillis(row.sla_due_ts);\n          if ((status === \"received\" || status === \"needs_review\") && due !== null && now > due) {\n            stuck.push({ sample_id: row.sample_id, lot_ref: row.lot_ref || \"\", status, sla_due_ts: row.sla_due_ts });\n          }\n        }\n        const decided = counts.approved + counts.rejected + counts.resample_requested;\n        return {\n          window_days: days,\n          counts,\n          decided,\n          approval_rate_pct: decided > 0 ? Math.round(counts.approved / decided * 1e3) / 10 : null,\n          mean_hours_receipt_to_decision: mean(decisionHours),\n          stuck\n        };\n      }\n      module.exports = { summarise, mean, COUNTED };\n    }\n  });\n\n  // src/trail/rows.js\n  var require_rows = __commonJS({\n    \"src/trail/rows.js\"(exports, module) {\n      \"use strict\";\n      var REGISTER_COLUMNS = [\n        \"sample_id\",\n        \"lot_ref\",\n        \"contract_ref\",\n        \"commodity\",\n        \"origin\",\n        \"shipper\",\n        \"spec_id\",\n        \"dispatch_ts\",\n        \"dispatch_photo\",\n        \"carrier_ref\",\n        \"receipt_ts\",\n        \"receipt_condition\",\n        \"receipt_photo\",\n        \"sla_due_ts\",\n        \"eval_ts\",\n        \"evaluator\",\n        \"input_type\",\n        \"input_url\",\n        \"transcript\",\n        \"extracted_json\",\n        \"verdict\",\n        \"verdict_reasons\",\n        \"decision\",\n        \"decision_by\",\n        \"decision_ts\",\n        \"decision_note\",\n        \"status\"\n      ];\n      var SPEC_COLUMNS = [\n        \"spec_id\",\n        \"contract_ref\",\n        \"commodity\",\n        \"param\",\n        \"label\",\n        \"unit\",\n        \"check\",\n        \"direction\",\n        \"threshold\",\n        \"values\",\n        \"tolerance_pct\",\n        \"required\",\n        \"notes\"\n      ];\n      var COUNTERPARTY_COLUMNS = [\n        \"contract_ref\",\n        \"shipper\",\n        \"shipper_email\",\n        \"customer\",\n        \"customer_email\",\n        \"notes\"\n      ];\n      var DECISION_LOG_COLUMNS = [\n        \"ts\",\n        \"sample_id\",\n        \"actor\",\n        \"action\",\n        \"from_status\",\n        \"to_status\",\n        \"note\"\n      ];\n      var TABLES = [\"register\", \"spec\", \"log\", \"counterparty\"];\n      var RECEIPT_CONDITIONS = [\"intact\", \"damaged\", \"partial\"];\n      var INPUT_TYPES = [\"voice\", \"photo\", \"text\"];\n      function emptyRow(columns) {\n        const row = {};\n        for (const column of columns) row[column] = \"\";\n        return row;\n      }\n      function pick(columns, values) {\n        const row = emptyRow(columns);\n        for (const column of columns) {\n          const value = values ? values[column] : void 0;\n          if (value === void 0 || value === null) continue;\n          row[column] = typeof value === \"string\" ? value : JSON.stringify(value);\n        }\n        return row;\n      }\n      function dispatchRow(values) {\n        return Object.assign(pick(REGISTER_COLUMNS, values), { status: \"dispatched\" });\n      }\n      function logEntry(values) {\n        return pick(DECISION_LOG_COLUMNS, values);\n      }\n      module.exports = {\n        TABLES,\n        REGISTER_COLUMNS,\n        SPEC_COLUMNS,\n        COUNTERPARTY_COLUMNS,\n        DECISION_LOG_COLUMNS,\n        RECEIPT_CONDITIONS,\n        INPUT_TYPES,\n        emptyRow,\n        pick,\n        dispatchRow,\n        logEntry\n      };\n    }\n  });\n\n  // src/trail/messages.js\n  var require_messages = __commonJS({\n    \"src/trail/messages.js\"(exports, module) {\n      \"use strict\";\n      function arrivalNotice(sample) {\n        const lot = sample.lot_ref ? `Lot ${sample.lot_ref}` : \"no lot reference\";\n        const contract = sample.contract_ref ? `contract ${sample.contract_ref}` : \"no contract reference\";\n        const lines = [`Sample ${sample.sample_id} received - ${lot}, ${contract}.`];\n        if (sample.receipt_condition && sample.receipt_condition !== \"intact\") {\n          lines.push(\"\", `Arrived ${sample.receipt_condition}. Photograph it before you open anything else.`);\n        }\n        lines.push(\"\", \"Reply to this message with a voice note or a photo of the grading sheet.\");\n        return lines.join(\"\\n\");\n      }\n      function dispatchNotice(sample) {\n        return [\n          `Sample ${sample.sample_id} dispatched.`,\n          `${sample.commodity || \"Commodity not stated\"}, lot ${sample.lot_ref}, contract ${sample.contract_ref}.`,\n          sample.carrier_ref ? `Carrier ${sample.carrier_ref}.` : \"\",\n          \"The QR is on the dispatch page and in the email copy, not here.\"\n        ].filter(Boolean).join(\"\\n\");\n      }\n      function decisionStamp(sample) {\n        const wording = {\n          approved: \"Approved\",\n          rejected: \"Rejected\",\n          resample_requested: \"Re-sample requested\"\n        }[sample.decision] || sample.decision;\n        return [\n          `${sample.sample_id} - ${wording} by ${sample.decision_by}.`,\n          sample.decision_note ? `Reason: ${sample.decision_note}` : \"\"\n        ].filter(Boolean).join(\"\\n\");\n      }\n      var refusal = {\n        notBound: () => [\n          \"I cannot tell which sample that is about.\",\n          \"\",\n          \"Reply to the arrival notification for the sample you are assessing. The message with the sample id in it.\"\n        ].join(\"\\n\"),\n        unknownSample: (sampleId) => `No sample ${sampleId} in the register. Check the id on the label.`,\n        wrongStatus: (sampleId, reason) => `${sampleId}: ${reason}.`,\n        alreadyEvaluated: (sampleId, verdict) => `${sampleId} was already assessed, verdict ${verdict}. Ask for a re-sample if it needs looking at again.`,\n        alreadyDecided: (sampleId, decision, by) => `${sampleId} was already ${decision} by ${by || \"someone\"}.`,\n        noSpec: (contractRef) => [\n          `No spec rows for contract ${contractRef}.`,\n          \"\",\n          \"The sample was not registered. Add the parameters to the Spec Library and dispatch it again.\",\n          \"Nothing is judged against a default spec.\"\n        ].join(\"\\n\"),\n        unreadable: (sampleId) => [\n          `${sampleId}: I could not read that.`,\n          \"\",\n          \"Send the readings as a photo of the grading sheet, or type them.\"\n        ].join(\"\\n\"),\n        voiceDisabled: (sampleId) => [\n          `${sampleId}: voice notes are not turned on for this instance.`,\n          \"\",\n          \"Send a photo of the grading sheet, or type the readings.\"\n        ].join(\"\\n\")\n      };\n      function nudgeMessage(entries) {\n        return [\n          `${entries.length} sample${entries.length === 1 ? \"\" : \"s\"} past the assessment deadline:`,\n          \"\",\n          ...entries.map((e) => `${e.sample_id}${e.lot_ref ? ` - lot ${e.lot_ref}` : \"\"}, due ${e.sla_due_ts.slice(0, 10)}, ${e.hours_over} hours over`)\n        ].join(\"\\n\");\n      }\n      function escalationMessage(entries) {\n        return [\n          `${entries.length} sample${entries.length === 1 ? \"\" : \"s\"} more than a day past the deadline and still not assessed:`,\n          \"\",\n          ...entries.map((e) => `${e.sample_id}${e.lot_ref ? ` - lot ${e.lot_ref}` : \"\"}, ${e.days_over} day${e.days_over === 1 ? \"\" : \"s\"} over`),\n          \"\",\n          \"These were nudged yesterday and nothing moved.\"\n        ].join(\"\\n\");\n      }\n      function digestMessage(digest) {\n        const c = digest.counts;\n        const lines = [\n          `Sample Trail, last ${digest.window_days} days`,\n          \"\",\n          `Dispatched ${c.dispatched}, received ${c.received}, assessed ${c.evaluated}`,\n          `Decided ${digest.decided}: ${c.approved} approved, ${c.rejected} rejected, ${c.resample_requested} re-sampled`\n        ];\n        if (digest.approval_rate_pct !== null) lines.push(`Approval rate ${digest.approval_rate_pct}%`);\n        if (digest.mean_hours_receipt_to_decision !== null) {\n          lines.push(`Mean ${digest.mean_hours_receipt_to_decision} hours from arrival to decision`);\n        }\n        if (c.needs_review > 0) lines.push(`${c.needs_review} waiting on a person`);\n        lines.push(\"\");\n        lines.push(digest.stuck.length === 0 ? \"Nothing past its deadline.\" : `Past deadline: ${digest.stuck.map((s) => s.sample_id).join(\", \")}`);\n        return lines.join(\"\\n\");\n      }\n      function decisionNotice(sample, reasons) {\n        const outcome = {\n          approved: \"approved\",\n          rejected: \"rejected\",\n          resample_requested: \"held, and a further sample is requested\"\n        }[sample.decision] || String(sample.decision || \"decided\");\n        const lines = [\n          `Sample ${sample.sample_id}, lot ${sample.lot_ref || \"not stated\"}, against contract ${sample.contract_ref || \"not stated\"}.`,\n          \"\",\n          `The sample has been ${outcome}.`\n        ];\n        const failures = (reasons || []).filter((r) => r.result === \"fail\" || r.result === \"borderline\");\n        if (failures.length > 0) {\n          lines.push(\"\", \"Against the contract specification:\", \"\");\n          for (const reason of failures) {\n            const label = reason.label || reason.param;\n            if (reason.check === \"absent\") {\n              lines.push(`- ${label}: ${reason.value} reported, which the contract excludes.`);\n            } else if (reason.result === \"borderline\") {\n              lines.push(`- ${label} ${reason.value}${reason.unit || \"\"} against a limit of ${reason.direction} ${reason.threshold}${reason.unit || \"\"}, within the agreed tolerance.`);\n            } else {\n              lines.push(`- ${label} ${reason.value}${reason.unit || \"\"} against a limit of ${reason.direction} ${reason.threshold}${reason.unit || \"\"}.`);\n            }\n          }\n        } else if (sample.verdict === \"pass\") {\n          lines.push(\"\", \"Every parameter measured was within the contract specification.\");\n        }\n        lines.push(\"\", `Assessed ${String(sample.eval_ts || \"\").slice(0, 10)}, decided by ${sample.decision_by || \"the buyer\"}.`);\n        return lines.join(String.fromCharCode(10));\n      }\n      function decisionSubject(sample) {\n        const outcome = { approved: \"approved\", rejected: \"rejected\", resample_requested: \"re-sample requested\" }[sample.decision] || String(sample.decision || \"decided\");\n        return `Sample ${sample.sample_id} ${outcome} - lot ${sample.lot_ref || \"\"}, contract ${sample.contract_ref || \"\"}`.trim();\n      }\n      module.exports = {\n        decisionNotice,\n        decisionSubject,\n        arrivalNotice,\n        dispatchNotice,\n        decisionStamp,\n        refusal,\n        nudgeMessage,\n        escalationMessage,\n        digestMessage\n      };\n    }\n  });\n\n  // src/verdict/coerce.js\n  var require_coerce = __commonJS({\n    \"src/verdict/coerce.js\"(exports, module) {\n      \"use strict\";\n      function toNumber(value) {\n        if (value === null || value === void 0 || value === \"\") return null;\n        if (typeof value === \"number\") return Number.isFinite(value) ? value : null;\n        if (typeof value !== \"string\") return null;\n        const cleaned = value.trim().replace(/^([+-]?\\d+),(\\d{1,2})$/, \"$1.$2\");\n        if (!/^[+-]?\\d+(\\.\\d+)?$/.test(cleaned)) return null;\n        const n = Number(cleaned);\n        return Number.isFinite(n) ? n : null;\n      }\n      function toConfidence(value) {\n        const n = toNumber(value);\n        if (n === null || n < 0) return 0;\n        return n > 1 ? 1 : n;\n      }\n      function toText(value) {\n        if (value === null || value === void 0) return \"\";\n        return String(value).trim();\n      }\n      function toList(value) {\n        if (value === null || value === void 0) return [];\n        const parts = Array.isArray(value) ? value : String(value).split(\",\");\n        return parts.map((p) => String(p).trim().toLowerCase()).filter(Boolean);\n      }\n      function toBool(value, fallback) {\n        const text = toText(value).toLowerCase();\n        if (text === \"\") return fallback === void 0 ? false : fallback;\n        return text === \"yes\" || text === \"true\" || text === \"1\" || text === \"y\";\n      }\n      module.exports = { toNumber, toConfidence, toText, toList, toBool };\n    }\n  });\n\n  // src/verdict/spec.js\n  var require_spec = __commonJS({\n    \"src/verdict/spec.js\"(exports, module) {\n      \"use strict\";\n      var { toNumber, toConfidence, toText, toList, toBool } = require_coerce();\n      var CHECKS = [\"numeric\", \"absent\"];\n      var DIRECTIONS = [\"min\", \"max\"];\n      function normaliseParam(raw) {\n        const row = raw && typeof raw === \"object\" ? raw : {};\n        const param = toText(row.param).toLowerCase();\n        const check = (toText(row.check) || \"numeric\").toLowerCase();\n        const out = {\n          param,\n          label: toText(row.label) || param,\n          unit: toText(row.unit),\n          check,\n          direction: null,\n          threshold: null,\n          values: toList(row.values),\n          tolerance_pct: toNumber(row.tolerance_pct),\n          required: toBool(row.required, true),\n          error: null\n        };\n        if (!param) {\n          out.error = \"the row names no parameter\";\n          return out;\n        }\n        if (!CHECKS.includes(check)) {\n          out.error = `unknown check \"${check}\", expected one of ${CHECKS.join(\", \")}`;\n          return out;\n        }\n        if (check === \"numeric\") {\n          const direction = toText(row.direction).toLowerCase();\n          const threshold = toNumber(row.threshold);\n          if (!DIRECTIONS.includes(direction)) {\n            out.error = `direction must be min or max, not \"${toText(row.direction)}\"`;\n            return out;\n          }\n          if (threshold === null) {\n            out.error = `threshold \"${toText(row.threshold)}\" is not a number`;\n            return out;\n          }\n          out.direction = direction;\n          out.threshold = threshold;\n          return out;\n        }\n        if (out.values.length === 0) {\n          out.error = \"an absent check names nothing to exclude\";\n          return out;\n        }\n        return out;\n      }\n      function normaliseSpec(rows) {\n        const list = Array.isArray(rows) ? rows : rows ? [rows] : [];\n        const params = list.map(normaliseParam);\n        const head = list[0] && typeof list[0] === \"object\" ? list[0] : {};\n        return {\n          spec_id: toText(head.spec_id),\n          contract_ref: toText(head.contract_ref),\n          commodity: toText(head.commodity),\n          tolerance_pct: toNumber(head.tolerance_pct),\n          params,\n          errors: params.filter((p) => p.error).map((p) => ({ param: p.param, detail: p.error }))\n        };\n      }\n      function normaliseExtraction(raw) {\n        const ex = raw && typeof raw === \"object\" ? raw : {};\n        const values = {};\n        const confidence = {};\n        const rawValues = ex.values && typeof ex.values === \"object\" ? ex.values : {};\n        for (const key of Object.keys(rawValues)) values[key.toLowerCase()] = toNumber(rawValues[key]);\n        const rawConfidence = ex.confidence && typeof ex.confidence === \"object\" ? ex.confidence : {};\n        for (const key of Object.keys(rawConfidence)) confidence[key.toLowerCase()] = toConfidence(rawConfidence[key]);\n        return {\n          values,\n          defects: toList(ex.defects),\n          notes: toText(ex.notes),\n          confidence\n        };\n      }\n      module.exports = { normaliseSpec, normaliseParam, normaliseExtraction, CHECKS, DIRECTIONS };\n    }\n  });\n\n  // src/trail/index.js\n  var require_index = __commonJS({\n    \"src/trail/index.js\"(exports, module) {\n      var ids = require_ids();\n      var extraction = require_extraction();\n      var sla = require_sla();\n      var digest = require_digest();\n      var rows = require_rows();\n      var messages = require_messages();\n      var spec = require_spec();\n      var TRAIL_VERSION = \"0.1.0\";\n      module.exports = {\n        TRAIL_VERSION,\n        mintSampleId: ids.mintSampleId,\n        isSampleId: ids.isSampleId,\n        findSampleId: ids.findSampleId,\n        SAMPLE_ID_RE: ids.SAMPLE_ID_RE,\n        normaliseSpec: spec.normaliseSpec,\n        buildExtractionPrompt: extraction.buildExtractionPrompt,\n        parseExtraction: extraction.parseExtraction,\n        emptyExtraction: extraction.emptyExtraction,\n        computeSlaDue: sla.computeSlaDue,\n        hoursBetween: sla.hoursBetween,\n        overdueScan: sla.overdueScan,\n        summarise: digest.summarise,\n        arrivalNotice: messages.arrivalNotice,\n        dispatchNotice: messages.dispatchNotice,\n        decisionStamp: messages.decisionStamp,\n        refusal: messages.refusal,\n        nudgeMessage: messages.nudgeMessage,\n        escalationMessage: messages.escalationMessage,\n        digestMessage: messages.digestMessage,\n        decisionNotice: messages.decisionNotice,\n        decisionSubject: messages.decisionSubject,\n        TABLES: rows.TABLES,\n        REGISTER_COLUMNS: rows.REGISTER_COLUMNS,\n        SPEC_COLUMNS: rows.SPEC_COLUMNS,\n        DECISION_LOG_COLUMNS: rows.DECISION_LOG_COLUMNS,\n        RECEIPT_CONDITIONS: rows.RECEIPT_CONDITIONS,\n        INPUT_TYPES: rows.INPUT_TYPES,\n        dispatchRow: rows.dispatchRow,\n        logEntry: rows.logEntry\n      };\n    }\n  });\n  return require_index();\n})();\n\n\n// Adapter: dispatch-row  (Flow A, Dispatch)\n//\n// Builds the register row. Every column the schema names is present, blanks included, so the\n// spreadsheet never shifts a column when a later flow writes into it.\n//\n// Node settings: JavaScript, Run Once for All Items.\n\nconst input = $('Normalise dispatch form').first().json;\nconst minted = $('Generate ID').first().json;\n// The spec row arrives on the wire. Three storage connectors can answer the lookup and only one\n// of them runs, so naming one of them here would break the moment somebody connected a spreadsheet.\nconst spec = $input.first().json;\n\nreturn [\n  {\n    json: ST_TRAIL.dispatchRow({\n      sample_id: minted.sample_id,\n      lot_ref: input.lot_ref,\n      contract_ref: input.contract_ref,\n      commodity: input.commodity || spec.commodity || '',\n      origin: input.origin,\n      shipper: input.shipper,\n      spec_id: spec.spec_id,\n      dispatch_ts: minted.dispatch_ts,\n      dispatch_photo: input.photo_name,\n      carrier_ref: input.carrier_ref,\n    }),\n  },\n];\n"
+      },
+      "name": "Build register row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "notes": "Every column the schema names, blanks included, so the sheet never shifts a column.",
+      "position": [
+        1320,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_THE_ID_OF_THE_STORE_WORKFLOW",
+          "cachedResultName": "Sample Trail - store"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operation": "append",
+            "table": "register",
+            "column": "",
+            "value": "",
+            "row": "={{ JSON.stringify($json) }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "name": "Register the sample",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "notes": "Row one of the lifecycle, straight from the Code node before it.",
+      "alwaysOutputData": true,
+      "position": [
+        1540,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "PASTE_THE_ID_OF_THE_STORE_WORKFLOW",
+          "cachedResultName": "Sample Trail - store"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "operation": "append",
+            "table": "log",
+            "column": "",
+            "value": "",
+            "row": "={{ JSON.stringify({ \"ts\": $('Generate ID').first().json.dispatch_ts, \"sample_id\": $('Generate ID').first().json.sample_id, \"actor\": \"dispatch form\", \"action\": \"dispatched\", \"from_status\": \"\", \"to_status\": \"dispatched\", \"note\": $('Normalise dispatch form').first().json.carrier_ref ? 'carrier ' + $('Normalise dispatch form').first().json.carrier_ref : '' }) }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "name": "Log dispatch",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "notes": "Append only. Nothing in this workflow updates the log.",
+      "alwaysOutputData": true,
+      "position": [
+        1760,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Generate ID').first().json.qr_url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "qr"
+            }
+          }
+        }
+      },
+      "name": "Fetch QR",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "notes": "There is no core QR node and community nodes are banned, so this is the pattern. No API key.",
+      "position": [
+        1980,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Normalise dispatch form').first().json.notify_email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "name": "Email a copy?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "toRecipients": "={{ $('Normalise dispatch form').first().json.notify_email }}",
+        "subject": "={{ 'Sample ' + $('Generate ID').first().json.sample_id + ' - lot ' + $('Normalise dispatch form').first().json.lot_ref }}",
+        "bodyContent": "={{ '<p>Sample <b style=\\\"font-size:20px\\\">' + $('Generate ID').first().json.sample_id + '</b></p>' + '<p>Lot ' + $('Normalise dispatch form').first().json.lot_ref + ', contract ' + $('Normalise dispatch form').first().json.contract_ref + '.</p>' + '<p><img src=\\\"' + $('Generate ID').first().json.qr_url + '\\\" width=\\\"260\\\" height=\\\"260\\\" alt=\\\"QR to the arrival form\\\"></p>' + '<p>Print this and put it in with the sample. Whoever receives it scans the code, or opens ' + '<a href=\\\"' + $('Generate ID').first().json.receipt_url + '\\\">the arrival form</a> and types the id.</p>' }}",
+        "additionalFields": {
+          "bodyContentType": "html"
+        }
+      },
+      "name": "Email the QR",
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "notes": "The durable copy, for whoever packs the sample at a desk with a printer. Delete this node if you do not want emailed copies.",
+      "position": [
+        2420,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Settings').first().json.evaluator_chat_id }}",
+        "text": "={{ 'Sample ' + $('Generate ID').first().json.sample_id + ' dispatched.\\n' + ($('Normalise dispatch form').first().json.commodity || 'Commodity not stated') + ', lot ' + $('Normalise dispatch form').first().json.lot_ref + ', contract ' + $('Normalise dispatch form').first().json.contract_ref + '.\\n' + 'The QR is on the dispatch page and in the email copy, not here.' }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "name": "Notify dispatch",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "notes": "Notification only. The QR does not travel by chat.",
+      "position": [
+        2640,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "completion",
+        "respondWith": "showText",
+        "completionTitle": "={{ 'Sample ' + $('Generate ID').first().json.sample_id }}",
+        "completionMessage": "={{ 'Registered against spec ' + $('Build register row').first().json.spec_id + '.\\n\\n' + 'Scan or open this to log the arrival:\\n' + $('Generate ID').first().json.receipt_url + '\\n\\n' + 'QR image: ' + $('Generate ID').first().json.qr_url + '\\n\\n' + 'Write the sample id on the bag as well. A QR that will not scan should cost a typed id, not a lost sample.' }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "name": "Dispatched",
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.5,
+      "position": [
+        2860,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Settings').first().json.dispatcher_chat_id }}",
+        "text": "={{ 'Dispatch refused: no spec rows for contract ' + $('Normalise dispatch form').first().json.contract_ref + '.\\n\\n' + 'The sample was not registered. Add the quality parameters for that contract to the Spec Library and dispatch it again.\\n' + 'Nothing is judged against a default spec.' }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "name": "No spec for that contract",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1980,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "completion",
+        "respondWith": "showText",
+        "completionTitle": "Not registered",
+        "completionMessage": "={{ 'There are no spec rows for contract ' + $('Normalise dispatch form').first().json.contract_ref + '.\\n\\n' + 'Add the quality parameters for that contract to the Spec Library, then dispatch again. ' + 'A sample is never judged against a default spec.' }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "name": "Not registered",
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.5,
+      "position": [
+        2200,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Sample Trail\n\nA sample goes out, arrives, gets assessed, and someone approves or rejects it against contract spec. Five flows, one workflow, all of it from a phone.\n\n**What you need**\n- A store: n8n Data Tables as shipped, or a spreadsheet if you switch the store nodes\n- A chat bot token and the chat id you want messages in\n- A model credential, for reading a photographed grading sheet or a typed reading\n- A mail credential, only if you want the QR emailed as well\n\n**Before you run it**\n1. Open the Settings node in each flow. The store ids and the chat id are the two things that must change.\n2. Put your quality parameters in the spec store, one row per parameter.\n3. Set SLA_DAYS to how long a grader has.\n\nThe arrival form prefills the sample id from the QR **only on the production URL**. On a test URL the field renders empty and looks broken. That is n8n, not this workflow.",
+        "height": 720,
+        "width": 640,
+        "color": 7
+      },
+      "name": "Note: Sample Trail",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -640,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Flow A: Dispatch\n\nA form on a phone, an id, and a QR that opens the arrival form. No scanner, no app, no hardware.\n\nA contract with no spec rows halts here and says so. Nothing is judged against a default spec.",
+        "height": 200,
+        "width": 460,
+        "color": 4
+      },
+      "name": "Note: Flow A: Dispatch",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -640,
+        720
+      ]
+    }
+  ],
+  "connections": {
+    "Dispatch a sample": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Normalise dispatch form",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalise dispatch form": {
+      "main": [
+        [
+          {
+            "node": "Generate ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate ID": {
+      "main": [
+        [
+          {
+            "node": "Look up spec",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Look up spec": {
+      "main": [
+        [
+          {
+            "node": "Spec exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Spec exists?": {
+      "main": [
+        [
+          {
+            "node": "Build register row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No spec for that contract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build register row": {
+      "main": [
+        [
+          {
+            "node": "Register the sample",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Register the sample": {
+      "main": [
+        [
+          {
+            "node": "Log dispatch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log dispatch": {
+      "main": [
+        [
+          {
+            "node": "Fetch QR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch QR": {
+      "main": [
+        [
+          {
+            "node": "Email a copy?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email a copy?": {
+      "main": [
+        [
+          {
+            "node": "Email the QR",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify dispatch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email the QR": {
+      "main": [
+        [
+          {
+            "node": "Notify dispatch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify dispatch": {
+      "main": [
+        [
+          {
+            "node": "Dispatched",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No spec for that contract": {
+      "main": [
+        [
+          {
+            "node": "Not registered",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

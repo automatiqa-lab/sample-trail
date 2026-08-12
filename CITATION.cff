@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: Sample Trail
+abstract: "Runs the quality approval decision on a physical commodity sample, from dispatch to verdict, on a phone. A model reads a photographed grading sheet or spoken readings into named values; a deterministic rule engine compares those against the contract specification; a named person decides. Not a LIMS and not a traceability system."
+type: software
+authors:
+  - family-names: Sidorecs
+    given-names: Aleks
+repository-code: "https://github.com/automatiqa-lab/sample-trail"
+url: "https://www.automatiqa.io/sample-trail/"
+license: MIT
+keywords:
+  - n8n
+  - supply-chain
+  - agri-food
+  - soft-commodities
+  - sample-management
+  - quality-approval
