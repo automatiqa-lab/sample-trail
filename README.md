@@ -6,8 +6,6 @@ sugar, cotton - where a lot is bought and sold on the strength of a sample someb
 Part of [Automatiqa Lab](https://www.automatiqa.io/sample-trail/) - open-source experiments where
 operations meet the algorithm.
 
-![The verdict card, as it arrives on a phone](assets/verdict-card.png)
-
 ## What it does
 
 It runs the quality approval decision on a physical sample, from dispatch to verdict, on the phone
@@ -48,11 +46,10 @@ into named values with a confidence on each, and stops there. The verdict is a C
 rules, because a rejected lot is a commercial argument and it has to reason identically every time.
 Swap the model and the verdicts do not move.
 
-![A sample the engine refused to score, with no decision buttons offered](assets/needs-review.png)
-
-That screenshot is the claim under load: three values the model could not read, reported as not
-stated, and **no buttons**, because approving a reading that was never scored is how an unreviewed
-sample gets waved through.
+When the model cannot read a value, the card says so: the parameter is reported as not stated, the
+sample is parked at `needs_review`, and **no decision buttons are offered at all**. Approving a
+reading that was never scored is how an unreviewed sample gets waved through, so the workflow
+refuses to offer the option.
 
 **State lives in a store.** The lifecycle runs for days or weeks and an event-driven engine forgets
 between events. One row per sample, one status column, written and never inferred, with every
@@ -101,8 +98,6 @@ lane.
 6. Attach a chat credential, a model credential, and a mail credential if you want emailed copies.
 7. Enable the chat trigger in `03-evaluation`. It ships disabled because enabling it repoints your
    bot's webhook.
-
-![The arrival form, opened from the QR with the sample id already filled in](assets/arrival-form.png)
 
 ## The specification
 
