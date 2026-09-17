@@ -150,3 +150,5 @@ plainly that nobody was told.
 
 MIT. The engine is developed and tested in a private working repository; what ships here is the
 result, and the workflows are generated from it rather than drawn by hand.
+
+The argument these projects sit under: [The Intelligent Orchestration Manifesto](https://www.automatiqa.io/manifesto/).
