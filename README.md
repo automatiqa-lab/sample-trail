@@ -3,7 +3,7 @@
 A sample management workflow for the agri-food and soft-commodities sectors - coffee, cocoa, grain,
 sugar, cotton - where a lot is bought and sold on the strength of a sample somebody has to approve.
 
-Part of [Automatiqa Lab](https://www.automatiqa.io/sample-trail/) - open-source experiments where
+Part of [Automatiqa Lab](https://www.automatiqa.io) - open-source experiments where. Project page: [automatiqa.io/sample-trail](https://www.automatiqa.io/sample-trail/).
 operations meet the algorithm.
 
 ## What it does
